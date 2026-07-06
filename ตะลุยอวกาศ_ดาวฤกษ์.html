@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ตะลุยอวกาศ: กำเนิดและวิวัฒนาการของดาวฤกษ์</title>
+<style>
+  :root{
+    --blue:#1657C7; --navy:#0E2F66; --orange:#EE6A1F;
+    --bg0:#03030f; --bg1:#0a0f2c; --panel:rgba(255,255,255,.07);
+    --line:rgba(255,255,255,.16); --txt:#eaf0ff; --dim:#9fb2d8;
+    --good:#39d98a; --bad:#ff5d6c; --gold:#ffd23f;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:"Segoe UI",Tahoma,"Sarabun",system-ui,sans-serif;
+    background:radial-gradient(130% 90% at 50% 0%,#1a2a6b 0%,var(--bg1) 42%,var(--bg0) 100%);
+    color:var(--txt); overflow:hidden; user-select:none;
+  }
+  #app{position:relative;max-width:520px;margin:0 auto;height:100dvh;display:flex;flex-direction:column}
+  #stars{position:fixed;inset:0;z-index:0;pointer-events:none}
+  #flash{position:fixed;inset:0;z-index:60;background:#fff;opacity:0;pointer-events:none}
+  #topbar{display:flex;align-items:center;gap:7px;padding:9px 13px;z-index:5}
+  #topbar .title{font-weight:800;font-size:15px;flex:1;line-height:1.1}
+  #topbar .title small{display:block;font-weight:500;color:var(--dim);font-size:11px}
+  .iconbtn{background:var(--panel);border:1px solid var(--line);color:var(--txt);
+    width:38px;height:38px;border-radius:11px;font-size:17px;cursor:pointer;display:grid;place-items:center}
+  .iconbtn:active{transform:scale(.9)}
+  .iconbtn.off{opacity:.4}
+  #progwrap{height:6px;background:rgba(255,255,255,.1);border-radius:99px;margin:0 13px 6px;overflow:hidden;z-index:5}
+  #progbar{height:100%;width:0;background:linear-gradient(90deg,var(--blue),var(--orange));transition:width .5s}
+  #screen{flex:1;position:relative;z-index:2;overflow-y:auto;overflow-x:hidden;padding:6px 14px 24px}
+  .fade{animation:fade .45s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+  @keyframes pop{0%{transform:scale(.3);opacity:0}60%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+  @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+  h1,h2{margin:.2em 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;margin:12px 0}
+  .btn{display:block;width:100%;border:none;border-radius:14px;padding:15px;font-size:16px;font-weight:800;
+    cursor:pointer;color:#fff;background:linear-gradient(135deg,var(--blue),#3a78ff);box-shadow:0 6px 20px rgba(22,87,199,.45)}
+  .btn:active{transform:translateY(2px)}
+  .btn.orange{background:linear-gradient(135deg,var(--orange),#ff924d);box-shadow:0 6px 20px rgba(238,106,31,.45)}
+  .btn.ghost{background:transparent;border:1px solid var(--line);box-shadow:none;color:var(--txt)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  input[type=text]{width:100%;padding:13px;border-radius:12px;border:1px solid var(--line);
+    background:rgba(0,0,0,.3);color:#fff;font-size:16px;margin-top:6px}
+  input::placeholder{color:#7e8db0}
+  label.fld{display:block;font-size:13px;color:var(--dim);margin-top:12px}
+  #nova{display:flex;gap:10px;align-items:flex-start;background:linear-gradient(135deg,rgba(22,87,199,.26),rgba(238,106,31,.13));
+    border:1px solid var(--line);border-radius:16px;padding:12px;margin:10px 0}
+  #nova .ava{flex:none;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-size:24px;
+    background:radial-gradient(circle at 35% 30%,#aecbff,#1657C7 55%,#0b2a73);box-shadow:0 0 18px rgba(127,176,255,.7);animation:floaty 3.5s ease-in-out infinite}
+  #nova .msg{font-size:14px;line-height:1.5}
+  #nova .who{font-weight:800;color:#9fc0ff;font-size:12px;display:block;margin-bottom:2px}
+  .node{display:flex;align-items:center;gap:14px;padding:14px;border-radius:16px;border:1px solid var(--line);
+    background:var(--panel);margin:10px 0;cursor:pointer;position:relative;overflow:hidden}
+  .node:not(.locked):active{transform:scale(.98)}
+  .node.locked{opacity:.5;cursor:not-allowed}
+  .node.bonus{border-style:dashed;border-color:var(--orange)}
+  .node .num{flex:none;width:48px;height:48px;border-radius:14px;display:grid;place-items:center;font-size:23px;font-weight:800;
+    background:linear-gradient(135deg,var(--navy),var(--blue))}
+  .node .info{flex:1;min-width:0}
+  .node .info b{font-size:15px}
+  .node .info p{margin:2px 0 0;font-size:12px;color:var(--dim)}
+  .node .stars{font-size:14px;letter-spacing:1px;color:var(--gold)}
+  .node .chk{position:absolute;right:12px;top:10px;color:var(--good);font-weight:800}
+  .simwrap{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#01020a;box-shadow:inset 0 0 40px rgba(0,0,0,.6)}
+  canvas{display:block;width:100%;touch-action:none}
+  .meter{height:15px;border-radius:99px;background:rgba(255,255,255,.12);overflow:hidden;margin:8px 0}
+  .meter>span{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--blue),var(--good));transition:width .15s}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .pill{padding:6px 12px;border-radius:99px;border:1px solid var(--line);background:var(--panel);font-size:13px}
+  input[type=range]{width:100%;accent-color:var(--orange);height:36px}
+  .stat{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed var(--line);font-size:14px}
+  .stat b{font-weight:800}
+  .badge4{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .badge4 .b{flex:1;min-width:70px;text-align:center;padding:8px 4px;border-radius:12px;border:1px solid var(--line);
+    background:var(--panel);font-size:11px;opacity:.38;transition:.4s}
+  .badge4 .b.on{opacity:1;border-color:var(--good);background:rgba(57,217,138,.18);animation:pop .5s}
+  .opt{border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:13px;margin:8px 0;cursor:pointer;font-size:15px;transition:.15s}
+  .opt:active{transform:scale(.98)}
+  .opt.correct{border-color:var(--good);background:rgba(57,217,138,.2)}
+  .opt.wrong{border-color:var(--bad);background:rgba(255,93,108,.2)}
+  .match{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .mtile{border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:13px;text-align:center;font-size:13px;cursor:pointer;transition:.15s}
+  .mtile.sel{border-color:var(--orange);background:rgba(238,106,31,.22)}
+  .mtile.done{border-color:var(--good);background:rgba(57,217,138,.18);opacity:.65;pointer-events:none}
+  .center{text-align:center}
+  .big{font-size:40px;margin:6px}
+  .toast{position:fixed;left:50%;top:16%;transform:translateX(-50%);z-index:40;background:var(--navy);
+    border:1px solid var(--line);padding:13px 20px;border-radius:14px;font-weight:700;opacity:0;transition:.3s;pointer-events:none;text-align:center;max-width:88%}
+  .toast.show{opacity:1}
+  .hintbtn{font-size:13px;color:var(--orange);background:none;border:none;cursor:pointer;text-decoration:underline;padding:6px}
+  .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:99px;background:var(--orange);color:#fff;font-weight:700}
+  .scorebox{font-size:48px;font-weight:900;color:var(--gold)}
+  .ok{color:var(--good)} .no{color:var(--bad)}
+  /* collectible cards */
+  .codexgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+  .ccard{border-radius:14px;overflow:hidden;border:1px solid var(--line);background:#0a1230;position:relative;aspect-ratio:3/4}
+  .ccard .pic{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.9}
+  .ccard .ov{position:absolute;inset:0;background:linear-gradient(180deg,rgba(3,5,20,0) 40%,rgba(3,5,20,.92));display:flex;flex-direction:column;justify-content:flex-end;padding:10px}
+  .ccard .ov b{font-size:13px} .ccard .ov small{font-size:10px;color:var(--dim);line-height:1.3;display:block;margin-top:2px}
+  .ccard.locked .pic{filter:grayscale(1) brightness(.25)}
+  .ccard.locked .ov{align-items:center;justify-content:center}
+  .ccard .lockicon{font-size:30px;opacity:.5}
+  .ccard .em{position:absolute;top:7px;left:9px;font-size:22px;z-index:2;text-shadow:0 2px 6px #000}
+  /* reveal card */
+  .reveal{margin:14px auto;max-width:240px;border-radius:18px;overflow:hidden;border:1px solid var(--line);
+    background:#0a1230;position:relative;aspect-ratio:3/4;animation:pop .6s;box-shadow:0 12px 40px rgba(0,0,0,.6),0 0 30px rgba(255,210,63,.25)}
+  .reveal .pic{position:absolute;inset:0;background-size:cover;background-position:center}
+  .reveal .ov{position:absolute;inset:0;background:linear-gradient(180deg,rgba(3,5,20,0) 35%,rgba(3,5,20,.95));display:flex;flex-direction:column;justify-content:flex-end;padding:14px}
+  .reveal .ov b{font-size:17px} .reveal .ov p{font-size:12px;color:#cfe;margin:5px 0 0;line-height:1.4}
+  .reveal .em{position:absolute;top:10px;left:12px;font-size:30px;text-shadow:0 2px 8px #000}
+  .credit{font-size:10px;color:var(--dim);text-align:center;margin-top:14px;line-height:1.5}
+  .credit a{color:#7fa6e8}
+</style>
+</head>
+<body>
+<canvas id="stars"></canvas>
+<div id="flash"></div>
+<div id="app">
+  <div id="topbar">
+    <button class="iconbtn" id="homeBtn" title="แผนที่" style="display:none">🗺️</button>
+    <div class="title">🚀 ตะลุยอวกาศ<small>กำเนิด &amp; วิวัฒนาการของดาวฤกษ์</small></div>
+    <button class="iconbtn" id="musicBtn" title="เพลง">🎵</button>
+    <button class="iconbtn" id="sfxBtn" title="เสียงเอฟเฟกต์">🔊</button>
+  </div>
+  <div id="progwrap"><div id="progbar"></div></div>
+  <div id="screen"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================ ASSETS ============================ */
+const MUSIC_URL='https://commons.wikimedia.org/wiki/Special:FilePath/'+encodeURIComponent('Kevin MacLeod - Living Voyage.ogg'); /* Kevin MacLeod, CC BY — via Wikimedia */
+function wiki(name,w){ return 'https://commons.wikimedia.org/wiki/Special:FilePath/'+encodeURIComponent(name)+'?width='+(w||900) }
+const IMG = {
+  galaxy: wiki('Milky Way Arch.jpg',1200),
+  nebula: wiki('Pillars of Creation (NIRCam Image).jpg',1000),
+  planetary: wiki('NGC6543.jpg',700),                 /* Cat's Eye Nebula (Hubble) */
+  crab: wiki('Crab Nebula.jpg',900),
+  blackhole: wiki('Black hole - Messier 87.jpg',800),
+  sun: wiki('The Sun in white light.jpg',800),
+  spectrum: wiki('Star types T through O.png',960),   /* colored spheres by spectral type O→M */
+  browndwarf: wiki('Brown Dwarf Gliese 229B.jpg',700),
+  siriusAB: wiki('Sirius A and B Hubble photo.jpg',600),
+  hrdiagram: wiki('HRDiagram.png',720),
+  betelgeuse: wiki('Betelgeuse captured by ALMA.jpg',700),
+  supernova: wiki('A star goes supernova in a binary system (eso2401a).jpg',700),
+  protostarCard: wiki('Protostar Herbig-Haro 46 47.jpg',700),      /* จานพอกพูน + เจ็ตของโปรโตสตาร์ (NASA/Spitzer) */
+  mainseqCard: wiki('NGC 346 (Hubble) (weic2301c).jpeg',900),      /* กระจุกดาวแถบลำดับหลักสีน้ำเงินอายุน้อย (Hubble) */
+  neutronstarCard: wiki('Neutron star illustrated.jpg',700),        /* ภาพจำลองดาวนิวตรอน (NASA) */
+};
+const imgCache={};
+function loadImg(url){
+  if(imgCache[url]!==undefined) return imgCache[url];
+  imgCache[url]=null;
+  const im=new Image();
+  im.onload=()=>{ imgCache[url]=im; };
+  im.onerror=()=>{ imgCache[url]=false; };
+  im.src=url; return imgCache[url];
+}
+function getImg(url){ const v=imgCache[url]; if(v===undefined){loadImg(url);return null} return v||null }
+function preload(){ Object.values(IMG).forEach(loadImg) }
+
+/* ============================ STATE ============================ */
+const LV = [
+  {id:1,icon:'🌫️',name:'กำเนิดดาว',desc:'ปั้นดาวจากเนบิวลา'},
+  {id:2,icon:'🔥',name:'จุดติดดาว',desc:'ฟิวชัน + สมดุลของแรง'},
+  {id:3,icon:'⭐',name:'สีและอุณหภูมิของดาว',desc:'สี ↔ อุณหภูมิ + ดาวจริง'},
+  {id:4,icon:'💀',name:'จุดจบของดาว',desc:'4 ชะตากรรมตามมวล'},
+  {id:5,icon:'📊',name:'แผนภาพ H–R',desc:'ด่านเสริม · รวมความรู้'},
+];
+const CARDS={
+  protostar:{em:'🌟',t:'โปรโตสตาร์',img:IMG.protostarCard,fact:'ดาวฤกษ์ก่อนเกิด มีจานพอกพูนแก๊ส-ฝุ่นและพ่นลำเจ็ตออกสองขั้ว (ภาพ: โปรโตสตาร์ Herbig-Haro 46/47 ถ่ายโดย Spitzer) เกิดจากแก๊สยุบตัวด้วยแรงโน้มถ่วง'},
+  mainseq:{em:'☀️',t:'ดาวแถบลำดับหลัก',img:IMG.mainseqCard,fact:'ดาวที่จุดฟิวชันสำเร็จ อยู่ในสมดุลอุทกสถิต (ภาพ: กระจุกดาวเกิดใหม่ NGC 346 เต็มไปด้วยดาวแถบลำดับหลักสีน้ำเงินร้อนจัด ถ่ายโดย Hubble)'},
+  spectrum:{em:'🌈',t:'สเปกตรัม OBAFGKM',img:IMG.spectrum,fact:'ลำดับสเปกตรัมเรียงตามอุณหภูมิ O(ร้อนสุด ~น้ำเงิน) → M(เย็นสุด ~แดง)'},
+  bd:{em:'🟤',t:'ดาวแคระน้ำตาล',img:IMG.browndwarf,fact:'มวล < 0.08 เท่าดวงอาทิตย์ ฟิวชันไฮโดรเจนไม่เกิด (ภาพ: Gliese 229B แคระน้ำตาลดวงแรกที่ยืนยัน)'},
+  wd:{em:'⚪',t:'ดาวแคระขาว',img:IMG.siriusAB,fact:'จุดจบของดาวมวลน้อย (0.08–8 เท่า) (ภาพ: Sirius B จุดเล็กข้าง Sirius A คือดาวแคระขาว)'},
+  ns:{em:'🔵',t:'ดาวนิวตรอน',img:IMG.neutronstarCard,fact:'แกนยุบหลังซูเปอร์โนวาของดาว 8–25 เท่า อัดแน่นเป็นทรงกลมขนาดเท่าเมือง หมุนรอบตัวเองเร็วมาก (ภาพ: จำลองดาวนิวตรอน โดย NASA)'},
+  bh:{em:'⚫',t:'หลุมดำ',img:IMG.blackhole,fact:'จุดจบของดาว > 25 เท่า (ภาพ: หลุมดำ M87* ถ่ายโดย Event Horizon Telescope)'},
+  hr:{em:'📊',t:'แผนภาพ H–R',img:IMG.hrdiagram,fact:'แผนภาพจัดกลุ่มดาวตามอุณหภูมิพื้นผิว (K) และโชติมาตรสัมบูรณ์'},
+};
+/* ดาวฤกษ์จริง (ข้อมูลโดยประมาณ) สำหรับด่าน 3 และ 5 */
+const REALSTARS=[
+  {n:'ดวงอาทิตย์',en:'Sun',sp:'G2V',T:5778,M:1,mag:4.83},
+  {n:'ไรเจล',en:'Rigel',sp:'B8',T:12100,M:21,mag:-7.0},
+  {n:'ซิริอุส เอ',en:'Sirius A',sp:'A1V',T:9940,M:2.0,mag:1.45},
+  {n:'อาร์คตูรุส',en:'Arcturus',sp:'K1.5',T:4290,M:1.1,mag:-0.3},
+  {n:'บีเทลจุส',en:'Betelgeuse',sp:'M1',T:3500,M:16,mag:-5.85},
+  {n:'สไปกา',en:'Spica',sp:'B1',T:22400,M:11,mag:-3.55},
+];
+/* ชุดดาวสำหรับด่าน 5 (H–R) — 8 ดวงกระจายครบทุกบริเวณ: แถบลำดับหลัก / ยักษ์ / ยักษ์ใหญ่ / แคระขาว / แคระแดง */
+const HRSTARS=[
+  {n:'ไรเจล',en:'Rigel',sp:'B8 Ia',T:12100,M:21,mag:-7.0},
+  {n:'สไปกา',en:'Spica',sp:'B1 V',T:22400,M:11,mag:-3.4},
+  {n:'ซิริอุส เอ',en:'Sirius A',sp:'A1 V',T:9940,M:2.0,mag:1.45},
+  {n:'ดวงอาทิตย์',en:'Sun',sp:'G2 V',T:5778,M:1,mag:4.83},
+  {n:'อาร์คตูรุส',en:'Arcturus',sp:'K1.5 III',T:4290,M:1.1,mag:-0.3},
+  {n:'บีเทลจุส',en:'Betelgeuse',sp:'M1 Ia',T:3500,M:16,mag:-5.85},
+  {n:'พรอกซิมา',en:'Proxima Cen',sp:'M5.5 V',T:3040,M:0.12,mag:15.5},
+  {n:'ซิริอุส บี',en:'Sirius B',sp:'DA (แคระขาว)',T:25000,M:1.0,mag:11.3},
+];
+const KEY='spacequest_stars_v2';
+let S = load();
+function load(){ try{return Object.assign(blank(),JSON.parse(localStorage.getItem(KEY))||{})}catch(e){return blank()} }
+function blank(){ return {name:'',room:'',stars:{},quiz:null,cards:{}} }
+function save(){ localStorage.setItem(KEY, JSON.stringify(S)) }
+function totalStars(){ return Object.values(S.stars).reduce((a,b)=>a+b,0) }
+function done(id){ return S.stars[id]!==undefined }
+function unlocked(id){ if(id===1)return true; if(id===5)return done(1)&&done(2)&&done(3)&&done(4); return done(id-1) }
+function unlockCard(k){ if(!S.cards[k]){S.cards[k]=true;save();return true} return false }
+
+/* ============================ AUDIO ============================ */
+let AC, master, soundOn=true;
+const Music={ el:null, synth:null, on:true, level:0.42,
+  begin(){ if(this.el)return this.resume();
+    const a=new Audio(); a.loop=true; a.preload='auto'; a.volume=0; a.src=MUSIC_URL; this.el=a;
+    let ok=false;
+    a.addEventListener('playing',()=>{ ok=true; this.fade(this.on?this.level:0); });
+    a.addEventListener('error',()=>{ if(!ok)this.useSynth() });
+    a.play().then(()=>{}).catch(()=>{ /* gesture needed; retry handled on button */ });
+    setTimeout(()=>{ if(this.el&&this.el.paused&&!this.synth) this.useSynth() },4500);
+  },
+  fade(to){ const a=this.el; if(!a)return; const f=a.volume,t0=performance.now();
+    (function s(n){ const k=Math.min(1,(n-t0)/600); a.volume=f+(to-f)*k; if(k<1)requestAnimationFrame(s) })(t0); },
+  resume(){ if(this.el&&this.el.paused&&this.on)this.el.play().catch(()=>{}); if(this.synth)this.synth.gain.gain.value=this.on?0.16:0; },
+  toggle(){ this.on=!this.on;
+    if(this.el){ if(this.on){this.el.play().catch(()=>{});this.fade(this.level)} else this.fade(0) }
+    if(this.synth)this.synth.gain.gain.value=this.on?0.16:0;
+    document.getElementById('musicBtn').classList.toggle('off',!this.on);
+  },
+  useSynth(){ if(this.synth)return; ensureAC(); this.synth=makeSynthMusic(); this.synth.gain.gain.value=this.on?0.16:0; }
+};
+function ensureAC(){ if(AC)return; AC=new (window.AudioContext||window.webkitAudioContext)();
+  master=AC.createGain(); master.gain.value=1; master.connect(AC.destination); }
+/* generative ambient pad fallback */
+function makeSynthMusic(){
+  const gain=AC.createGain(); gain.connect(master);
+  const filt=AC.createBiquadFilter(); filt.type='lowpass'; filt.frequency.value=900; filt.Q.value=2; filt.connect(gain);
+  const lfo=AC.createOscillator(); lfo.frequency.value=.05; const lg=AC.createGain(); lg.gain.value=350; lfo.connect(lg); lg.connect(filt.frequency); lfo.start();
+  const chords=[[130.8,164.8,196,261.6],[116.5,146.8,174.6,233.1],[98,123.5,146.8,196],[110,138.6,164.8,220]];
+  let ci=0; const oscs=[];
+  for(let i=0;i<4;i++){ const o=AC.createOscillator(); o.type='sine'; const g=AC.createGain(); g.gain.value=.18; o.connect(g); g.connect(filt); o.frequency.value=chords[0][i]; o.start(); oscs.push({o,g}); }
+  function nextChord(){ const c=chords[ci%chords.length]; ci++;
+    oscs.forEach((x,i)=>x.o.frequency.linearRampToValueAtTime(c[i],AC.currentTime+2)); }
+  const iv=setInterval(nextChord,8000);
+  // gentle arpeggio
+  const ag=AC.createGain(); ag.gain.value=.08; ag.connect(filt);
+  const arp=setInterval(()=>{ if(Music.on===false)return; const c=chords[(ci-1+chords.length)%chords.length];
+    const f=c[Math.floor(Math.random()*c.length)]*2; const o=AC.createOscillator(),g=AC.createGain();
+    o.type='triangle';o.frequency.value=f;g.gain.setValueAtTime(0,AC.currentTime);g.gain.linearRampToValueAtTime(.5,AC.currentTime+.05);
+    g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+1.4);o.connect(g);g.connect(ag);o.start();o.stop(AC.currentTime+1.5); },1200);
+  return {gain};
+}
+function sfx(type){
+  if(!soundOn)return; ensureAC(); if(AC.state==='suspended')AC.resume(); const t=AC.currentTime;
+  if(type==='success'){ [523,659,784,1047,1319].forEach((f,i)=>beep(f,t+i*.08,.16,'triangle',.28)) }
+  else if(type==='card'){ [784,1047,1568].forEach((f,i)=>beep(f,t+i*.07,.2,'sine',.3)) }
+  else if(type==='click'){ beep(520,t,.05,'square',.1) }
+  else if(type==='good'){ beep(880,t,.1,'triangle',.22); beep(1320,t+.06,.1,'triangle',.16) }
+  else if(type==='bad'){ beep(160,t,.2,'sawtooth',.16) }
+  else if(type==='ignite'){ rise(t); noise(.6,.32) }
+  else if(type==='boom'){ noise(1.4,.6); beep(60,t,.8,'sine',.4) }
+  else if(type==='whoosh'){ noise(.4,.18) }
+}
+function beep(f,t,d,type,v){ const o=AC.createOscillator(),g=AC.createGain();
+  o.type=type;o.frequency.value=f;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v,t+.01);
+  g.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(g);g.connect(master);o.start(t);o.stop(t+d+.02) }
+function rise(t){ const o=AC.createOscillator(),g=AC.createGain();o.type='sawtooth';
+  o.frequency.setValueAtTime(120,t);o.frequency.exponentialRampToValueAtTime(900,t+.5);
+  g.gain.setValueAtTime(.0,t);g.gain.linearRampToValueAtTime(.2,t+.1);g.gain.exponentialRampToValueAtTime(.001,t+.6);
+  o.connect(g);g.connect(master);o.start(t);o.stop(t+.65) }
+function noise(dur,v){ ensureAC(); const n=AC.sampleRate*dur,b=AC.createBuffer(1,n,AC.sampleRate),d=b.getChannelData(0);
+  for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,2);
+  const s=AC.createBufferSource();s.buffer=b;const g=AC.createGain();g.gain.value=v;
+  const f=AC.createBiquadFilter();f.type='lowpass';f.frequency.value=1400;s.connect(f);f.connect(g);g.connect(master);s.start() }
+
+/* ============================ JUICE UTILS ============================ */
+let RAFGEN=0;
+function loop(fn){ const g=++RAFGEN; (function step(t){ if(g!==RAFGEN)return; if(fn(t)===false)return; requestAnimationFrame(step) })(performance.now()); return g; }
+function vib(ms){ try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){} }
+function flash(color,peak,dur){ const f=document.getElementById('flash'); f.style.background=color||'#fff';
+  f.style.transition='none'; f.style.opacity=peak==null?.85:peak; void f.offsetWidth;
+  f.style.transition='opacity '+(dur||550)+'ms ease-out'; f.style.opacity=0; }
+function shake(ms,amp){ const el=document.getElementById('screen'); const t0=performance.now(); ms=ms||450;amp=amp||9;
+  (function s(n){ const k=(n-t0)/ms; if(k>=1){el.style.transform='';return} const a=amp*(1-k);
+    el.style.transform='translate('+((Math.random()*2-1)*a)+'px,'+((Math.random()*2-1)*a)+'px)'; requestAnimationFrame(s) })(t0); }
+function easeOutBack(x){ const c=1.70158,c3=c+1; return 1+c3*Math.pow(x-1,3)+c*Math.pow(x-1,2) }
+/* particle pool */
+function mkBurst(arr,x,y,n,opt){ opt=opt||{}; for(let i=0;i<n;i++){ const a=Math.random()*7,sp=(opt.spd||3)*(.3+Math.random());
+  arr.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,decay:opt.decay||.012+Math.random()*.01,
+    size:(opt.size||3)*(.5+Math.random()),col:opt.col||'255,220,150',grav:opt.grav||0}) } }
+function stepParts(ctx,arr){ ctx.save();ctx.globalCompositeOperation='lighter';
+  for(let i=arr.length-1;i>=0;i--){ const p=arr[i]; p.x+=p.vx;p.y+=p.vy;p.vy+=p.grav;p.vx*=.98;p.vy*=.98;p.life-=p.decay;
+    if(p.life<=0){arr.splice(i,1);continue} ctx.globalAlpha=Math.max(0,p.life);
+    ctx.fillStyle='rgb('+p.col+')'; ctx.beginPath();ctx.arc(p.x,p.y,p.size*p.life,0,7);ctx.fill(); }
+  ctx.restore(); }
+/* glowing star */
+function shade(col){ return col }
+function drawStar(ctx,x,y,r,col,t){ t=t||0; const fl=1+0.04*Math.sin(t/180);
+  ctx.save(); ctx.globalCompositeOperation='lighter';
+  let h=ctx.createRadialGradient(x,y,0,x,y,r*3.4*fl); h.addColorStop(0,col);h.addColorStop(.18,col);h.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.globalAlpha=.45;ctx.fillStyle=h;ctx.beginPath();ctx.arc(x,y,r*3.4*fl,0,7);ctx.fill();
+  ctx.globalAlpha=1;
+  let b=ctx.createRadialGradient(x-r*.3,y-r*.3,r*.1,x,y,r); b.addColorStop(0,'#ffffff');b.addColorStop(.45,col);b.addColorStop(1,col);
+  ctx.fillStyle=b;ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();
+  ctx.restore(); }
+function drawCover(ctx,img,x,y,w,h,alpha){ if(!img)return false; const ir=img.width/img.height, rr=w/h; let sw,sh,sx,sy;
+  if(ir>rr){ sh=img.height; sw=sh*rr; sx=(img.width-sw)/2; sy=0 } else { sw=img.width; sh=sw/rr; sx=0; sy=(img.height-sh)/2 }
+  ctx.save(); if(alpha!=null)ctx.globalAlpha=alpha; ctx.drawImage(img,sx,sy,sw,sh,x,y,w,h); ctx.restore(); return true }
+
+/* ============================ HELPERS ============================ */
+const $=s=>document.querySelector(s), scr=()=>document.getElementById('screen');
+function show(html){ ++RAFGEN; const e=scr(); e.style.transform=''; e.innerHTML=html; e.classList.remove('fade'); void e.offsetWidth; e.classList.add('fade'); e.scrollTop=0; }
+function nova(msg){ return '<div id="nova"><div class="ava">🛰️</div><div><div class="msg"><span class="who">น้องโนวา</span>'+msg+'</div></div></div>' }
+function toast(t,ms){ const e=$('#toast'); e.innerHTML=t; e.classList.add('show'); clearTimeout(e._t); e._t=setTimeout(()=>e.classList.remove('show'),ms||1500) }
+function updProg(){ let c=0;[1,2,3,4].forEach(i=>{if(done(i))c++}); $('#progbar').style.width=(c/4*100)+'%';
+  $('#homeBtn').style.display = curScreen==='start'?'none':'grid'; }
+function starStr(n){ return '★★★'.slice(0,n)+'☆☆☆'.slice(0,3-n) }
+let curScreen='start';
+function award(id,hintsUsed){ let st=Math.max(1,3-hintsUsed); if(S.stars[id]===undefined||st>S.stars[id]){S.stars[id]=st} save(); return st }
+let HINTS=0;
+function hintBox(text){ return '<div id="hintArea" style="margin-top:8px"></div>'+
+  '<button class="hintbtn" onclick="useHint(this)" data-h="'+text.replace(/"/g,'&quot;')+'">💡 ขอตัวช่วยจากน้องโนวา</button>' }
+function useHint(b){ HINTS++; sfx('click'); $('#hintArea').innerHTML=nova(b.getAttribute('data-h')); }
+
+/* ============================ START ============================ */
+function startScreen(){
+  curScreen='start'; updProg();
+  show('<div class="center" style="margin-top:14px"><div class="big" style="font-size:60px">🌌</div>'+
+    '<h1>ตะลุยอวกาศ</h1><p style="color:var(--dim);margin-top:-6px">กำเนิดและวิวัฒนาการของดาวฤกษ์ · สำหรับ ม.4</p></div>'+
+    nova('สวัสดีนักสำรวจ! ฉัน "น้องโนวา" ผู้ช่วยประจำยาน 🛰️ เราจะไป<b>ปั้นดาวด้วยมือตัวเอง</b> ตั้งแต่เกิดจนดับ พร้อมเก็บ<b>การ์ดสะสมดาว</b>ครบทุกใบไหม? กรอกชื่อก่อนนะ!')+
+    '<div class="card"><label class="fld">ชื่อ–นามสกุล</label>'+
+    '<input type="text" id="inName" placeholder="เช่น สมหญิง ใจดี" value="'+(S.name||'')+'">'+
+    '<label class="fld">ชั้น/ห้อง · เลขที่</label>'+
+    '<input type="text" id="inRoom" placeholder="เช่น ม.4/1 เลขที่ 12" value="'+(S.room||'')+'">'+
+    '<button class="btn orange" style="margin-top:16px" onclick="goMap()">เริ่มออกเดินทาง 🚀</button>'+
+    (totalStars()>0?'<button class="btn ghost" style="margin-top:8px" onclick="resetGame()">เริ่มใหม่ทั้งหมด</button>':'')+'</div>'+
+    '<p class="center" style="font-size:12px;color:var(--dim)">🎵 มีเพลงอวกาศ + เสียงเอฟเฟกต์ (เปิดอยู่) ปรับได้ที่ปุ่มมุมขวาบน</p>'+
+    '<div class="credit">เพลง: “Living Voyage” by Kevin MacLeod (incompetech.com) — CC BY 4.0<br>ภาพ: NASA/ESA · EHT Collaboration (M87*, CC BY 4.0) ผ่าน Wikimedia Commons</div>');
+}
+function goMap(){
+  const n=$('#inName').value.trim(), r=$('#inRoom').value.trim();
+  if(!n){ toast('กรอกชื่อก่อนนะ 😊'); return }
+  S.name=n; S.room=r; save();
+  ensureAC(); if(AC.state==='suspended')AC.resume(); Music.begin(); sfx('click');
+  mapScreen();
+}
+function resetGame(){ if(confirm('ลบความคืบหน้าทั้งหมดและเริ่มใหม่?')){ const k=S.name,r=S.room; S=blank(); save(); startScreen() } }
+
+/* ============================ MAP ============================ */
+function mapScreen(){
+  curScreen='map'; updProg();
+  const nodes = LV.map(l=>{
+    const lk=!unlocked(l.id), dn=done(l.id);
+    return '<div class="node '+(lk?'locked':'')+' '+(l.bonus?'bonus':'')+'" '+(lk?'':'onclick="openLevel('+l.id+')"')+'>'+
+      '<div class="num">'+(lk?'🔒':l.icon)+'</div>'+
+      '<div class="info"><b>ด่าน '+l.id+' · '+l.name+(l.id===5?' <span class="tag">เสริม</span>':'')+'</b><p>'+l.desc+'</p>'+
+      (dn?'<div class="stars">'+starStr(S.stars[l.id])+'</div>':'')+'</div>'+
+      (dn?'<div class="chk">✓</div>':'')+'</div>';
+  }).join('');
+  const cardCount=Object.keys(CARDS).filter(k=>S.cards[k]).length;
+  const allReq = done(1)&&done(2)&&done(3)&&done(4);
+  show('<h2>🗺️ แผนที่การเดินทาง</h2>'+
+    '<p style="color:var(--dim);margin-top:0;font-size:13px">นักสำรวจ <b>'+S.name+'</b> '+(S.room?'· '+S.room:'')+' · <b style="color:var(--gold)">'+totalStars()+' ★</b></p>'+
+    '<div class="node" onclick="codexScreen()" style="border-color:var(--gold)"><div class="num" style="background:linear-gradient(135deg,#9a7b00,var(--gold))">📒</div>'+
+      '<div class="info"><b>สมุดสะสมดาว</b><p>เก็บการ์ดได้ '+cardCount+'/'+Object.keys(CARDS).length+' ใบ</p></div></div>'+
+    nodes+
+    (allReq?'<button class="btn orange" onclick="startQuiz()">📝 ทำแบบทดสอบท้ายเกม</button>':
+      '<div class="card center" style="font-size:13px;color:var(--dim)">ผ่านด่าน 1–4 เพื่อปลดล็อกแบบทดสอบท้ายเกม</div>'));
+}
+function codexScreen(){
+  curScreen='codex'; sfx('click'); updProg();
+  const cells=Object.keys(CARDS).map(k=>{ const c=CARDS[k],got=S.cards[k];
+    return '<div class="ccard '+(got?'':'locked')+'">'+
+      '<div class="pic" style="background-image:url(\''+c.img+'\')"></div>'+
+      (got?'<div class="em">'+c.em+'</div>':'')+
+      '<div class="ov">'+(got?'<b>'+c.t+'</b><small>'+c.fact+'</small>':'<div class="lockicon">🔒</div>')+'</div></div>';
+  }).join('');
+  show('<h2>📒 สมุดสะสมดาว</h2><p style="color:var(--dim);margin-top:0;font-size:13px">เล่นให้ครบทุกด่านเพื่อปลดล็อกการ์ดทั้งหมด</p>'+
+    '<div class="codexgrid">'+cells+'</div>'+
+    '<button class="btn ghost" style="margin-top:14px" onclick="mapScreen()">← กลับแผนที่</button>');
+}
+document.getElementById('homeBtn').onclick=()=>{ sfx('click'); mapScreen() };
+document.getElementById('musicBtn').onclick=()=>{ ensureAC(); if(AC.state==='suspended')AC.resume(); if(!Music.el&&!Music.synth)Music.begin(); Music.toggle() };
+document.getElementById('sfxBtn').onclick=()=>{ soundOn=!soundOn; document.getElementById('sfxBtn').classList.toggle('off',!soundOn); document.getElementById('sfxBtn').textContent=soundOn?'🔊':'🔈'; if(soundOn)sfx('click') };
+
+/* ============================ LEVEL ROUTER & COMPLETE ============================ */
+function openLevel(id){ sfx('click'); HINTS=0; ({1:level1,2:level2,3:level3,4:level4,5:level5})[id]() }
+function levelHeader(id,sub){ const l=LV.find(x=>x.id===id);
+  return '<h2>'+l.icon+' ด่าน '+id+' · '+l.name+'</h2><p style="color:var(--dim);margin-top:-6px;font-size:13px">'+sub+'</p>' }
+function completeLevel(id,hints,msg,cardKey){
+  const st=award(id,hints); sfx('success'); flash('#ffe9b0',.5,700); curScreen='map'; updProg();
+  const c = cardKey?CARDS[cardKey]:null;
+  if(cardKey)unlockCard(cardKey);
+  setTimeout(()=>sfx('card'),400);
+  show('<div class="center fade" style="margin-top:18px"><div class="big" style="font-size:54px">🎉</div>'+
+    '<h2>ผ่านด่าน '+id+' แล้ว!</h2>'+
+    '<div style="font-size:38px;color:var(--gold);letter-spacing:4px">'+starStr(st)+'</div>'+
+    '<p style="color:var(--dim);margin-top:2px">ได้ '+st+' ดาว'+(hints>0?' (ใช้ตัวช่วย '+hints+' ครั้ง)':' — ไม่ใช้ตัวช่วยเลย!')+'</p></div>'+
+    (c?'<p class="center" style="color:var(--gold);font-weight:700;margin:4px">🎁 ปลดล็อกการ์ดใหม่!</p>'+
+      '<div class="reveal"><div class="pic" style="background-image:url(\''+c.img+'\')"></div><div class="em">'+c.em+'</div>'+
+      '<div class="ov"><b>'+c.t+'</b><p>'+c.fact+'</p></div></div>':'')+
+    nova(msg)+
+    '<button class="btn orange" onclick="afterLevel('+id+')">ไปต่อ →</button>'+
+    '<button class="btn ghost" style="margin-top:8px" onclick="mapScreen()">กลับแผนที่</button>');
+}
+function afterLevel(id){ sfx('click'); const nxt=id+1; if(id<4 && unlocked(nxt)){ openLevel(nxt) } else mapScreen() }
+
+/* ============================ PHYSICS ============================ */
+function massToTemp(m){ return Math.max(2400, Math.min(45000, 5778*Math.pow(m,0.505))) }
+function massToLife(m){ return 10*Math.pow(m,-2.5) }
+function massToLum(m){ return Math.pow(m,3.5) }
+function lumToAbsMag(L){ return 4.83-2.5*Math.log10(L) }
+function tempType(T){ if(T>=30000)return['O','น้ำเงิน','#9bb0ff'];if(T>=10000)return['B','น้ำเงิน-ขาว','#bcd0ff'];
+  if(T>=7500)return['A','ขาว','#e6ecff'];if(T>=6000)return['F','ขาว-เหลือง','#fbfbe6'];
+  if(T>=5200)return['G','เหลือง','#ffe46b'];if(T>=3700)return['K','ส้ม','#ffbf6b'];return['M','แดง','#ff7a55'] }
+function fmtLife(g){ if(g>=1000)return (g/1000).toFixed(0)+' ล้านล้านปี'; if(g>=1)return g.toFixed(1)+' พันล้านปี'; return (g*1000).toFixed(0)+' ล้านปี' }
+function cv(id,ratio){ const c=document.getElementById(id),x=c.getContext('2d');
+  const W=c.width=c.clientWidth||document.getElementById('screen').clientWidth-28, H=c.height=Math.round(W*ratio); return {c,x,W,H} }
+function pos(c,e){ const r=c.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return{x:(t.clientX-r.left),y:(t.clientY-r.top)} }
+
+/* ============================ LEVEL 1 — gravity well ============================ */
+function level1(){
+  show(levelHeader(1,'แตะค้างเพื่อสร้าง "หลุมแรงโน้มถ่วง" ดึงแก๊สเข้าหาแกน')+
+    nova('ตรงหน้าคือ <b>เนบิวลา</b> แหล่งกำเนิดดาว! <b>แตะค้าง</b> ตรงไหนก็ได้ แก๊สจะวนเป็นเกลียวไหลเข้าไปสะสมที่แกนกลาง พอมวลพอ ดาวจะ "จุดกำเนิด"!')+
+    '<div class="simwrap"><canvas id="cv1"></canvas></div>'+
+    '<div class="row" style="justify-content:space-between"><span>มวลที่สะสม</span><b id="m1">0%</b></div><div class="meter"><span id="bar1"></span></div>'+
+    hintBox('แตะค้างใกล้ ๆ กลุ่มแก๊สที่ลอยอยู่ แล้วลากวงให้มันไหลเข้าหาแกนกลาง — ยิ่งสะสมมวลมาก แรงโน้มถ่วงยิ่งดึงแรงขึ้น!')+
+    '<button class="btn ghost" style="margin-top:10px" onclick="mapScreen()">← กลับ</button>');
+  const {c,x,W,H}=cv('cv1',0.92); const cx=W/2,cy=H/2; let mass=0,target=260,ignited=false,touch=null;
+  const parts=[]; const P=[]; const mile={25:0,50:0,75:0}; const t0=performance.now();
+  for(let i=0;i<300;i++){ let px,py; do{px=Math.random()*W;py=Math.random()*H}while(Math.hypot(px-cx,py-cy)<38);
+    P.push({x:px,y:py,vx:0,vy:0,s:0.5+Math.random()*1.4}); }
+  c.addEventListener('pointerdown',e=>{touch=pos(c,e)});
+  c.addEventListener('pointermove',e=>{if(touch)touch=pos(c,e)});
+  window.addEventListener('pointerup',()=>touch=null);
+  loop(t=>{
+    x.clearRect(0,0,W,H);
+    const nb=getImg(IMG.nebula); if(nb)drawCover(x,nb,0,0,W,H,.28); else { const bg=x.createRadialGradient(cx,cy,0,cx,cy,W*.7);bg.addColorStop(0,'rgba(60,40,90,.4)');bg.addColorStop(1,'rgba(5,5,20,0)');x.fillStyle=bg;x.fillRect(0,0,W,H) }
+    const coreR=10+Math.min(mass,target)*0.42;
+    drawStar(x,cx,cy,Math.max(6,coreR), ignited?'#fff2c0':'#9cc0ff', t);
+    /* แรงโน้มถ่วงพื้นฐานเพิ่มขึ้นช้า ๆ ตามเวลาที่ผ่านไปด้วย กันไม่ให้ผู้เล่นลากพลาดจนติดค้างไม่จบด่าน */
+    const gAmbient=Math.min(0.02,0.0012+mass*0.00022)+(t-t0)*0.0000035;
+    for(const p of P){ if(p.dead)continue;
+      let dx=cx-p.x,dy=cy-p.y,d=Math.hypot(dx,dy)||1; p.vx+=dx/d*gAmbient; p.vy+=dy/d*gAmbient;
+      // tangential swirl
+      p.vx+=-dy/d*0.02; p.vy+=dx/d*0.02;
+      if(!ignited&&touch){ let tx=touch.x-p.x,ty=touch.y-p.y,td=Math.hypot(tx,ty)||1; if(td<65){ p.vx+=tx/td*0.08; p.vy+=ty/td*0.08 } }
+      p.vx*=.95;p.vy*=.95;p.x+=p.vx;p.y+=p.vy;
+      if(!ignited&&d<coreR+6){ p.dead=true; mass++; mkBurst(parts,p.x,p.y,3,{col:'170,200,255',spd:1.5,size:2});
+        [25,50,75].forEach(M=>{ if(mass>=target*M/100&&!mile[M]){mile[M]=1;toast(M+'% — แก๊สกำลังหนาแน่นขึ้น!');sfx('good')} });
+        if(mass>=target&&!ignited)ignite() }
+      x.save();x.globalCompositeOperation='lighter';x.fillStyle='rgba(180,205,255,.8)';x.beginPath();x.arc(p.x,p.y,p.s,0,7);x.fill();x.restore();
+    }
+    if(!ignited&&touch){ x.strokeStyle='rgba(238,106,31,.55)';x.lineWidth=2;x.beginPath();x.arc(touch.x,touch.y,65,0,7);x.stroke(); }
+    stepParts(x,parts);
+    const pct=Math.min(100,Math.round(mass/target*100)); $('#bar1').style.width=pct+'%'; $('#m1').textContent=pct+'%';
+  });
+  function ignite(){ if(ignited)return; ignited=true; sfx('ignite'); flash('#fff',.9,650); shake(500,12); vib(120); toast('💥 จุดกำเนิดโปรโตสตาร์!');
+    mkBurst(parts,cx,cy,60,{col:'255,220,150',spd:6,size:4,decay:.01});
+    setTimeout(()=>completeLevel(1,HINTS,'เกิด <b>โปรโตสตาร์</b> แล้ว! แต่มันยังไม่ "ติดไฟ" จริง ไปจุดไฟด้วยฟิวชันในด่าน 2 กันต่อ!','protostar'),1500); }
+}
+
+/* ============================ LEVEL 2 ============================ */
+function level2(){ phase2a() }
+function phase2a(){
+  show(levelHeader(2,'เฟส 1/3 · ให้ความร้อนแกนจนถึงจุดติดฟิวชัน')+
+    nova('โปรโตสตาร์ต้องร้อนถึง <b>~10 ล้านเคลวิน</b> ถึงจุดฟิวชันได้ (แกนดวงอาทิตย์จริง ~15 ล้าน) เลื่อนเพิ่มอุณหภูมิให้เข้า<b>โซนเขียว</b>!')+
+    '<div class="simwrap"><canvas id="cv2"></canvas></div>'+
+    '<div class="row" style="justify-content:space-between"><span>อุณหภูมิแกน</span><b id="tval">0 ล้าน K</b></div>'+
+    '<input type="range" id="temp" min="0" max="20" step="0.1" value="0">'+
+    '<button class="btn orange" id="igBtn" disabled onclick="phase2b()">🔥 จุดติดฟิวชัน!</button>'+
+    hintBox('เลื่อนให้ตัวเลขอยู่ระหว่าง 10–15 ล้านเคลวิน (โซนเขียว) แล้วปุ่มจุดติดจะกดได้')+
+    '<button class="btn ghost" style="margin-top:10px" onclick="mapScreen()">← กลับ</button>');
+  const {x,W,H}=cv('cv2',0.6); const sl=$('#temp'); const cx=W/2,cy=H/2;
+  let lastT=-1;
+  loop(t=>{ const T=+sl.value; const inzone=T>=10&&T<=15;
+    if(T!==lastT){ $('#tval').textContent=T.toFixed(1)+' ล้าน K'; $('#tval').style.color=inzone?'var(--good)':'var(--txt)'; $('#igBtn').disabled=!inzone; lastT=T; }
+    x.clearRect(0,0,W,H);
+    const col = T<4?'#7a4030':T<8?'#ff7a3a':T<10?'#ffb15b':inzone?'#fff4c0':'#bcd0ff';
+    const r=20+T*2.4; drawStar(x,cx,cy,r,col,t);
+    if(inzone){ x.save();x.globalCompositeOperation='lighter';x.strokeStyle='rgba(57,217,138,.8)';x.lineWidth=3;x.beginPath();x.arc(cx,cy,r+12+2*Math.sin(t/120),0,7);x.stroke();x.restore(); }
+    x.fillStyle='var(--dim)';x.font='12px sans-serif';x.textAlign='center';x.fillText(inzone?'พร้อมจุดติด! 🔥':'ยังร้อนไม่พอ',cx,H-12);
+  });
+  sl.addEventListener('input',()=>sfx('click'));
+}
+function phase2b(){
+  sfx('ignite'); flash('#fff',.7,500); shake(350,8); vib(60);
+  show(levelHeader(2,'เฟส 2/3 · ปฏิกิริยาฟิวชัน')+
+    nova('นี่คือ <b>ฟิวชัน</b>! ไฮโดรเจน (H) 4 นิวเคลียส รวมเป็นฮีเลียม (He) 1 นิวเคลียส แล้วปล่อย<b>พลังงานมหาศาล</b> ☀️')+
+    '<div class="simwrap"><canvas id="cv2b"></canvas></div>'+
+    '<button class="btn orange" id="next2b" disabled onclick="phase2c()">ไปเฟสสุดท้าย →</button>'+
+    '<button class="btn ghost" style="margin-top:10px" onclick="mapScreen()">← กลับ</button>');
+  const {x,W,H}=cv('cv2b',0.72); const cx=W/2,cy=H/2; let t=0; const parts=[]; let banged=false;
+  const protons=[{a:0},{a:1.57},{a:3.14},{a:4.71}];
+  loop(()=>{ t+=0.014; x.clearRect(0,0,W,H);
+    if(t<1.4){ const r=95*(1-Math.min(1,t)); protons.forEach((p,i)=>{ const ang=p.a+t*1.5; const px=cx+Math.cos(ang)*r,py=cy+Math.sin(ang)*r;
+        x.save();x.globalCompositeOperation='lighter'; let g=x.createRadialGradient(px,py,0,px,py,16);g.addColorStop(0,'#cfe0ff');g.addColorStop(1,'rgba(80,120,255,0)');x.fillStyle=g;x.beginPath();x.arc(px,py,16,0,7);x.fill();x.restore();
+        x.fillStyle='#bcd0ff';x.beginPath();x.arc(px,py,8,0,7);x.fill(); x.fillStyle='#06143a';x.font='bold 10px sans-serif';x.textAlign='center';x.fillText('H',px,py+3); });
+    } else { if(!banged){banged=true;sfx('good');flash('#fff7d6',.8,500);mkBurst(parts,cx,cy,40,{col:'255,230,160',spd:5,size:3});vib(40);}
+      const fl=Math.min(1,(t-1.4)*1.5); drawStar(x,cx,cy,26+10*fl,'#ffcf5e',t*60);
+      x.fillStyle='#3a2a00';x.font='bold 13px sans-serif';x.textAlign='center';x.fillText('He',cx,cy+4);
+      // energy rings
+      x.save();x.globalCompositeOperation='lighter';for(let k=0;k<3;k++){const rr=((t*120+k*40)%160);x.globalAlpha=Math.max(0,.5-rr/320);x.strokeStyle='#ffe8a0';x.lineWidth=3;x.beginPath();x.arc(cx,cy,rr,0,7);x.stroke();}x.restore();
+      if(fl>=1)$('#next2b').disabled=false;
+    }
+    stepParts(x,parts);
+  });
+}
+function phase2c(){
+  sfx('click');
+  show(levelHeader(2,'เฟส 3/3 · ภารกิจสมดุลอุทกสถิต')+
+    nova('ดาวคงรูปได้เพราะ <b>สมดุล</b> ระหว่าง <b>แรงโน้มถ่วง</b> (ลูกศรน้ำเงิน ดึงเข้า) กับ <b>ความดันฟิวชัน</b> (ลูกศรส้ม ดันออก) <b>กดค้าง</b>เพิ่มฟิวชัน → ดาว<b>ขยาย</b> / ปล่อย → ดาว<b>หด</b> คุมให้ลูกศรสองฝั่งยาวเท่ากันครบ 8 วินาที!')+
+    '<div class="simwrap"><canvas id="cv2c"></canvas></div>'+
+    '<button class="btn orange" id="holdBtn" style="touch-action:none">⬆️ กดค้างเพื่อเติมความดันฟิวชัน</button>'+
+    '<div class="row" style="justify-content:space-between;margin-top:6px"><span>อยู่ในสมดุล</span><b id="bal2">0.0 / 8.0 วิ</b></div>'+
+    hintBox('กดค้าง = ดาวขยาย (ฟิวชันชนะ) / ปล่อย = ดาวหด (แรงโน้มถ่วงชนะ) แตะ-ปล่อยเป็นจังหวะให้ดาวขนาดนิ่งกลาง ๆ จนลูกศรสองฝั่งยาวเท่ากัน')+
+    '<button class="btn ghost" style="margin-top:10px" onclick="mapScreen()">← กลับ</button>');
+  const {x,W,H}=cv('cv2c',0.82); const cx=W/2,cy=H/2; const G=0.5; let F=0.2,inTime=0,win=false,holding=false,last=performance.now();
+  const base=Math.min(W,H)*0.15;
+  const btn=$('#holdBtn');
+  btn.addEventListener('pointerdown',e=>{e.preventDefault();holding=true}); window.addEventListener('pointerup',()=>holding=false);
+  function arrow(ang,r0,len,col,inward){ const dx=Math.cos(ang),dy=Math.sin(ang); let sx,sy,ex,ey;
+    if(inward){ sx=cx+dx*(r0+len); sy=cy+dy*(r0+len); ex=cx+dx*r0; ey=cy+dy*r0; }
+    else { sx=cx+dx*r0; sy=cy+dy*r0; ex=cx+dx*(r0+len); ey=cy+dy*(r0+len); }
+    x.strokeStyle=col;x.fillStyle=col;x.lineWidth=3; x.beginPath();x.moveTo(sx,sy);x.lineTo(ex,ey);x.stroke();
+    const a2=Math.atan2(ey-sy,ex-sx); x.beginPath();x.moveTo(ex,ey);
+    x.lineTo(ex-9*Math.cos(a2-0.4),ey-9*Math.sin(a2-0.4));x.lineTo(ex-9*Math.cos(a2+0.4),ey-9*Math.sin(a2+0.4));x.closePath();x.fill(); }
+  loop(now=>{ const dt=Math.min(.05,(now-last)/1000); last=now;
+    F += (holding?1.1:-0.9)*dt; F=Math.max(0,Math.min(1,F));
+    const bal = F>=0.42 && F<=0.58;
+    if(bal)inTime+=dt; else inTime=Math.max(0,inTime-dt*0.4);
+    $('#bal2').textContent=inTime.toFixed(1)+' / 8.0 วิ'; $('#bal2').style.color=bal?'var(--good)':'var(--txt)';
+    x.clearRect(0,0,W,H);
+    const r=base*(0.6+F*1.2);
+    drawStar(x,cx,cy,r, bal?'#9be8b0':(F>0.58?'#ff8a5b':'#7fa0ff'), now);
+    const gLen=42, fLen=42*(F/G);
+    for(let i=0;i<8;i++){ const a=i/8*Math.PI*2;
+      arrow(a, r+9, gLen, 'rgba(127,176,255,.95)', true);              // gravity inward
+      arrow(a+Math.PI/8, r+9, fLen, 'rgba(255,140,90,.95)', false);    // fusion outward (interleaved)
+    }
+    x.textAlign='left';x.font='13px sans-serif';
+    x.fillStyle='#9cc0ff';x.fillText('🔵 แรงโน้มถ่วง (ดึงเข้า)',8,H-26);
+    x.fillStyle='#ff9a6a';x.fillText('🟠 ความดันฟิวชัน (ดันออก)',8,H-9);
+    if(bal){ x.fillStyle='var(--good)';x.textAlign='right';x.font='bold 14px sans-serif';x.fillText('สมดุล ✓',W-8,22);
+      x.save();x.globalCompositeOperation='lighter';x.strokeStyle='rgba(57,217,138,.85)';x.lineWidth=4;
+      x.beginPath();x.arc(cx,cy,r+gLen+16,-Math.PI/2,-Math.PI/2+7*Math.min(1,inTime/8));x.stroke();x.restore(); }
+    if(inTime>=8&&!win){ win=true; sfx('success');flash('#caffe0',.5,600);
+      setTimeout(()=>completeLevel(2,HINTS,'ดาวเข้าสู่ <b>สมดุลอุทกสถิต</b> แล้ว! แรงโน้มถ่วงกับความดันฟิวชันหักล้างกันพอดี ดาวจะส่องแสงนิ่ง ๆ ในช่วง <b>แถบลำดับหลัก</b> ไปอีกหลายพันล้านปี','mainseq'),500); return false; }
+  });
+}
+
+/* ============================ LEVEL 3 — สี ↔ อุณหภูมิ + ดาวจริง ============================ */
+function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]} return a }
+function starDot(col,size){ return '<span style="display:inline-block;width:'+size+'px;height:'+size+'px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff,'+col+' 72%);box-shadow:0 0 '+(size/2)+'px '+col+'"></span>' }
+function level3(){
+  const stars=REALSTARS.slice().sort((a,b)=>b.T-a.T);
+  show(levelHeader(3,'เลื่อนปรับ "อุณหภูมิ" แล้วดูสีของดาวเปลี่ยน — สีบอกอุณหภูมิ')+
+    nova('ความลับ: <b>สีของดาวบอกอุณหภูมิพื้นผิว</b>! เลื่อนแถบอุณหภูมิดูสิ — ดาวร้อน = สีน้ำเงิน ดาวเย็น = สีแดง แล้วดูดาวจริงด้านล่างว่าสีตรงกับอุณหภูมิอย่างไร')+
+    '<div class="simwrap"><canvas id="cv3"></canvas></div>'+
+    '<div class="row" style="justify-content:space-between"><span>อุณหภูมิพื้นผิว</span><b id="t3">5,800 K</b></div>'+
+    '<input type="range" id="temp3" min="2400" max="40000" step="100" value="5800">'+
+    '<div class="card" style="margin-top:6px;display:flex;justify-content:space-between;align-items:center">'+
+      '<div><div style="font-size:13px;color:var(--dim)">ชนิดสเปกตรัม</div><b id="sp3" style="font-size:24px"></b></div>'+
+      '<div style="text-align:right"><div style="font-size:13px;color:var(--dim)">สีที่ตามองเห็น</div><b id="cn3"></b></div></div>'+
+    '<p style="font-size:13px;color:var(--dim);margin:12px 0 4px">⭐ ดาวฤกษ์จริงเรียงจากร้อน→เย็น (จำไว้ไปทดสอบ!)</p>'+
+    '<div class="row" style="gap:6px;align-items:stretch">'+stars.map(s=>{const col=tempType(s.T)[2];
+      return '<div class="pill" style="display:flex;flex-direction:column;align-items:center;gap:5px;flex:1;min-width:84px;padding:10px 4px">'+starDot(col,28)+
+        '<b style="font-size:12px">'+s.n+'</b><small style="color:var(--dim);font-size:10px;text-align:center">'+s.sp+'<br>'+s.T.toLocaleString()+' K</small></div>'}).join('')+'</div>'+
+    '<button class="btn orange" style="margin-top:14px" onclick="level3test()">พร้อมทดสอบความเข้าใจ →</button>'+
+    '<button class="btn ghost" style="margin-top:8px" onclick="mapScreen()">← กลับ</button>');
+  const {x,W,H}=cv('cv3',0.5); const sl=$('#temp3'); const cx=W/2,cy=H/2;
+  loop(t=>{ const T=+sl.value; const tt=tempType(T),col=tt[2];
+    $('#t3').textContent=Number(T).toLocaleString()+' K';
+    $('#sp3').textContent=tt[0]; $('#sp3').style.color=col;
+    $('#cn3').textContent=tt[1]; $('#cn3').style.color=col;
+    x.clearRect(0,0,W,H); drawStar(x,cx,cy,Math.min(W,H)*0.2,col,t); });
+  sl.addEventListener('input',()=>sfx('click'));
+}
+function level3test(){
+  sfx('click'); const pool=REALSTARS.slice(); const order=shuffle(pool.slice());
+  let qi=0;
+  function render(){
+    if(qi>=5){ completeLevel(3,HINTS,'เก่งมาก! เธอเชื่อมโยง <b>สี ↔ อุณหภูมิ (K) ↔ สเปกตรัม</b> ของดาวจริงได้แล้ว — สีน้ำเงิน = ร้อนที่สุด, สีแดง = เย็นที่สุด','spectrum'); return; }
+    const target=order[qi%order.length];
+    const others=shuffle(pool.filter(s=>s.en!==target.en)).slice(0,3);
+    const opts=shuffle([target,...others]);
+    const hot=target.T>=10000?' · ร้อนมาก':target.T<4000?' · เย็น':'';
+    show(levelHeader(3,'ทดสอบ '+(qi+1)+'/5 · เลือกดาวที่ตรงคุณสมบัติ')+
+      nova('ดาวดวงใดมีคุณสมบัติ: <b>สเปกตรัม '+target.sp+'</b> · อุณหภูมิ ~<b>'+target.T.toLocaleString()+' K</b>'+hot+' ?')+
+      '<div class="codexgrid" id="opt3">'+opts.map(s=>{const col=tempType(s.T)[2];
+        return '<div class="opt" data-en="'+s.en+'" style="text-align:center;padding:16px 8px;margin:0">'+starDot(col,46)+
+          '<div style="margin-top:8px;font-weight:700">'+s.n+'</div><small style="color:var(--dim)">'+s.en+'</small></div>'}).join('')+'</div>'+
+      hintBox('สีของดาวบอกอุณหภูมิ: ยิ่งร้อน(K สูง)→น้ำเงิน, ยิ่งเย็น(K ต่ำ)→แดง · เทียบกับการ์ดดาวที่เพิ่งดู')+
+      '<button class="btn ghost" style="margin-top:8px" onclick="mapScreen()">← กลับ</button>');
+    let answered=false;
+    $('#opt3').onclick=e=>{ const tl=e.target.closest('.opt'); if(!tl||answered)return;
+      if(tl.dataset.en===target.en){ answered=true; tl.classList.add('correct'); sfx('good'); toast('ถูกต้อง! ('+target.n+')'); qi++; setTimeout(render,750); }
+      else{ tl.classList.add('wrong'); sfx('bad'); setTimeout(()=>tl.classList.remove('wrong'),500); } };
+  }
+  render();
+}
+
+/* ============================ LEVEL 4 — เลือกกรณี → สไลด์ภาพวิวัฒนาการ ============================ */
+const CASES=[
+  {key:'bd',label:'ดาวแคระน้ำตาล',icon:'🟤',mass:'< 0.08 เท่า',stages:[
+    {t:'เนบิวลายุบตัว',img:'nebula',col:'#9cc0ff',rf:.16,d:'แก๊สในเนบิวลายุบตัวด้วยแรงโน้มถ่วง เริ่มก่อตัวเป็นดาว'},
+    {t:'มวลไม่พอจุดฟิวชัน',img:null,col:'#a9743f',rf:.12,d:'มวลน้อยกว่า 0.08 เท่าดวงอาทิตย์ แกนกลางร้อนไม่ถึงเกณฑ์จุดฟิวชันไฮโดรเจน'},
+    {t:'ดาวแคระน้ำตาล',img:'browndwarf',col:'#a9743f',rf:.15,d:'กลายเป็นดาวแคระน้ำตาล "ดาวที่ล้มเหลว" เรืองแสงสลัว ไม่เกิดฟิวชันไฮโดรเจน'},
+  ]},
+  {key:'wd',label:'ดาวแคระขาว',icon:'⚪',mass:'0.08 – 8 เท่า',stages:[
+    {t:'แถบลำดับหลัก',img:'sun',col:'#ffe46b',rf:.18,d:'ดาวมวล 0.08–8 เท่า เผาไฮโดรเจนอย่างสงบ (เช่น ดวงอาทิตย์)'},
+    {t:'ดาวยักษ์แดง (red giant)',img:null,col:'#ff5b3a',rf:.32,d:'ไฮโดรเจนในแกนหมด แกนหดตัว เปลือกพองออกเป็นดาวยักษ์แดง'},
+    {t:'เนบิวลาดาวเคราะห์',img:'planetary',col:'#c79bff',rf:.16,d:'ดาวสลัดเปลือกชั้นนอกออกเป็นเนบิวลาดาวเคราะห์'},
+    {t:'ดาวแคระขาว (white dwarf)',img:'siriusAB',col:'#eaf0ff',rf:.1,d:'เหลือแกนร้อนหนาแน่นเป็นดาวแคระขาว (เช่น Sirius B จุดเล็กข้าง Sirius A)'},
+    {t:'ดาวแคระดำ (black dwarf)',img:null,col:'#3a3a44',rf:.1,d:'ดาวแคระขาวค่อย ๆ เย็นลงจนมืดสนิทเป็นดาวแคระดำ — ใช้เวลานานมากจนยังไม่เคยเกิดขึ้นจริงในเอกภพ (เป็นช่วงตามทฤษฎี)'},
+  ]},
+  {key:'ns',label:'ดาวนิวตรอน',icon:'🔵',mass:'8 – 25 เท่า',stages:[
+    {t:'แถบลำดับหลัก',img:'sun',col:'#bcd0ff',rf:.18,d:'ดาวมวล 8–25 เท่า ร้อนจัด เผาเชื้อเพลิงเร็ว'},
+    {t:'ดาวยักษ์ใหญ่แดง',img:'betelgeuse',col:'#ff5b3a',rf:.34,d:'พองเป็นดาวยักษ์ใหญ่แดง (เช่น Betelgeuse)'},
+    {t:'ซูเปอร์โนวา',img:'supernova',col:'#fff',rf:.3,d:'แกนยุบตัวฉับพลันแล้วระเบิดรุนแรงเป็นซูเปอร์โนวา'},
+    {t:'ดาวนิวตรอน',img:'crab',col:'#cfe0ff',rf:.07,d:'เหลือแกนยุบแน่นเป็นดาวนิวตรอน (เนบิวลาปูมีพัลซาร์อยู่ใจกลาง)'},
+  ]},
+  {key:'bh',label:'หลุมดำ',icon:'⚫',mass:'> 25 เท่า',stages:[
+    {t:'แถบลำดับหลัก',img:'sun',col:'#bcd0ff',rf:.18,d:'ดาวมวลมากกว่า 25 เท่าดวงอาทิตย์ มวลมหาศาล'},
+    {t:'ดาวยักษ์ใหญ่แดง',img:'betelgeuse',col:'#ff5b3a',rf:.36,d:'พองเป็นดาวยักษ์ใหญ่แดงขนาดมโหฬาร'},
+    {t:'ซูเปอร์โนวา',img:'supernova',col:'#fff',rf:.3,d:'ระเบิดซูเปอร์โนวา แต่แกนหนักเกินกว่าจะหยุดยุบตัว'},
+    {t:'หลุมดำ',img:'blackhole',col:'#000',rf:.12,d:'ยุบตัวต่อจนแรงโน้มถ่วงมากจนแสงหนีไม่ออก กลายเป็นหลุมดำ'},
+  ]},
+];
+function fpBox(t,hl){ return '<span style="display:inline-block;padding:4px 9px;border:1px solid '+(hl?'var(--gold)':'var(--line)')+';border-radius:8px;background:'+(hl?'rgba(255,210,63,.2)':'var(--panel)')+';font-weight:'+(hl?'800':'400')+';color:'+(hl?'var(--gold)':'var(--txt)')+'">'+t+'</span>' }
+function fpArr(){ return '<span style="color:var(--dim);margin:0 3px">→</span>' }
+function flowDiagram4(){ return '<div class="card" style="overflow-x:auto;padding:12px">'+
+  '<div style="font-size:12px;color:var(--dim);margin-bottom:8px">🗺️ แผนภาพวิวัฒนาการของดาวฤกษ์ (แยกตามมวล)</div>'+
+  '<div style="display:flex;align-items:center;font-size:11px;white-space:nowrap;margin-bottom:8px">'+fpBox('เนบิวลา')+fpArr()+fpBox('มวลน้อย–ปานกลาง')+fpArr()+fpBox('ยักษ์แดง')+fpArr()+fpBox('เนบิวลาดาวเคราะห์')+fpArr()+fpBox('แคระขาว')+fpArr()+fpBox('แคระดำ')+'</div>'+
+  '<div style="display:flex;align-items:center;font-size:11px;white-space:nowrap">'+fpBox('เนบิวลา')+fpArr()+fpBox('มวลมาก')+fpArr()+fpBox('ยักษ์ใหญ่แดง')+fpArr()+fpBox('ซูเปอร์โนวา')+fpArr()+fpBox('นิวตรอน / หลุมดำ')+'</div>'+
+  '<div style="font-size:10px;color:var(--dim);margin-top:6px">* มวลน้อยกว่า 0.08 เท่า → ฟิวชันไม่เกิด เป็นดาวแคระน้ำตาล</div></div>' }
+function level4(){ renderCases4(); }
+function renderCases4(){
+  show(levelHeader(4,'เลือกช่วงมวล แล้วดูลำดับวิวัฒนาการทีละขั้น')+
+    nova('<b>มวลตอนเกิดกำหนดว่าดาวจะตายแบบไหน</b> ดูแผนภาพรวมด้านล่าง แล้วเลือกช่วงมวลเพื่อดูภาพวิวัฒนาการทีละขั้น เก็บการ์ดให้ครบทั้ง 4 กรณี!')+
+    flowDiagram4()+
+    '<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">'+CASES.map(c=>
+      '<button class="btn '+(S.cards[c.key]?'ghost':'orange')+'" style="text-align:left;font-size:15px" onclick="pickCase4(\''+c.key+'\')">'+
+      c.icon+' มวล '+c.mass+'  →  '+c.label+(S.cards[c.key]?'   ✓':'')+'</button>').join('')+'</div>'+
+    '<div class="badge4" style="margin-top:12px">'+CASES.map(c=>'<div class="b '+(S.cards[c.key]?'on':'')+'">'+c.icon+'<br>'+c.label+'</div>').join('')+'</div>'+
+    '<button class="btn ghost" style="margin-top:12px" onclick="mapScreen()">← กลับแผนที่</button>');
+}
+function pickCase4(key){ sfx('click'); const c=CASES.find(x=>x.key===key); let idx=0;
+  function render(){
+    const st=c.stages[idx], last=idx===c.stages.length-1;
+    show(levelHeader(4,c.icon+' มวล '+c.mass+' · ขั้นที่ '+(idx+1)+'/'+c.stages.length)+
+      '<div class="card" style="overflow-x:auto;padding:8px"><div style="display:flex;align-items:center;font-size:11px;white-space:nowrap">'+
+        c.stages.map((s,i)=>fpBox(s.t.replace(/\s*\(.*\)/,''),i===idx)).join(fpArr())+'</div></div>'+
+      '<div class="simwrap"><canvas id="cv4"></canvas></div>'+
+      '<div class="card" style="margin-top:8px"><b style="font-size:17px;color:var(--gold)">'+st.t+'</b><p style="margin:6px 0 0;font-size:14px;line-height:1.55">'+st.d+'</p></div>'+
+      '<div class="row" style="gap:8px;margin-top:8px">'+
+        '<button class="btn ghost" style="flex:1" '+(idx===0?'disabled':'')+' onclick="_st4('+(idx-1)+')">◀ ก่อนหน้า</button>'+
+        (last?'<button class="btn orange" style="flex:1" onclick="_done4()">เก็บการ์ด ✓</button>'
+             :'<button class="btn orange" style="flex:1" onclick="_st4('+(idx+1)+')">ถัดไป ▶</button>')+'</div>'+
+      '<button class="btn ghost" style="margin-top:8px" onclick="renderCases4()">← เลือกกรณีอื่น</button>');
+    const {x,W,H}=cv('cv4',0.66); const cx=W/2,cy=H/2;
+    loop(t=>{ x.clearRect(0,0,W,H); const im=st.img?getImg(IMG[st.img]):null;
+      if(im) drawCover(x,im,0,0,W,H,1);
+      else if(st.col==='#000'){ x.save();x.globalCompositeOperation='lighter';const ang=t/600;
+        let gr=x.createRadialGradient(cx,cy,8,cx,cy,70);gr.addColorStop(0,'rgba(255,180,80,0)');gr.addColorStop(.6,'rgba(255,170,70,.6)');gr.addColorStop(1,'rgba(255,120,40,0)');
+        x.translate(cx,cy);x.rotate(ang);x.scale(1,.35);x.fillStyle=gr;x.beginPath();x.arc(0,0,70,0,7);x.fill();x.restore();
+        x.fillStyle='#000';x.beginPath();x.arc(cx,cy,24,0,7);x.fill();x.strokeStyle='#ffce8a';x.lineWidth=3;x.beginPath();x.arc(cx,cy,26,0,7);x.stroke(); }
+      else drawStar(x,cx,cy,Math.min(W,H)*st.rf,st.col,t);
+    });
+    window._st4=i=>{ sfx('click'); idx=i; render(); };
+    window._done4=()=>{ unlockCard(c.key); sfx('card');
+      const fate=['bd','wd','ns','bh'].filter(k=>S.cards[k]).length;
+      toast(c.icon+' เก็บการ์ด '+c.label+'! ('+fate+'/4)',1600);
+      if(fate>=4){ setTimeout(()=>completeLevel(4,HINTS,'ครบทั้ง 4 ชะตากรรม! นี่คือ <b>วงจรชีวิตของดาว</b> — เกิดจากเนบิวลา และบางส่วนกลายเป็นเนบิวลาใหม่ให้ดาวรุ่นต่อไป ✨ (ดูการ์ดทั้งหมดได้ในสมุดสะสม)',null),700); }
+      else setTimeout(renderCases4,1300);
+    };
+  }
+  render();
+}
+
+/* ============================ LEVEL 5 — แผนภาพ H–R (อุณหภูมิ K + โชติมาตร) ============================ */
+function level5(){
+  const stars=HRSTARS;
+  const Tmin=2500,Tmax=44000,magTop=-9,magBot=16.5;
+  const txf=T=>(Math.log(Tmax)-Math.log(T))/(Math.log(Tmax)-Math.log(Tmin));
+  const tyf=mg=>(mg-magTop)/(magBot-magTop);
+  const placed={};
+  const txInv=tx=>Math.exp(Math.log(Tmax)-tx*(Math.log(Tmax)-Math.log(Tmin)));
+  function fillAndFinish(){
+    sfx('success'); flash('#ffe9b0',.4,600);
+    show(levelHeader(5,'แผนภาพ H–R ที่สมบูรณ์ 🌟')+
+      nova('เยี่ยมมาก! วางดาวครบแล้ว 🎉 ดูสิ เมื่อเติมดาวฤกษ์จำนวนมากลงไป จะเห็น <b>กลุ่มดาว</b> ชัดเจน — แถบลำดับหลัก (แนวทแยง), ดาวยักษ์/ยักษ์ใหญ่ (บนขวา) และดาวแคระขาว (ล่างซ้าย)')+
+      '<div class="simwrap"><canvas id="cv5"></canvas></div>'+
+      '<button class="btn orange" style="margin-top:10px" onclick="_finL5()">เสร็จสิ้นภารกิจ 🌟</button>');
+    window._finL5=()=>completeLevel(5,HINTS,'ระดับนักดาราศาสตร์ตัวจริง! 🌟 เธอจัดดาวบนแผนภาพ H–R ตามอุณหภูมิ (K) และโชติมาตรสัมบูรณ์ได้ครบ และเห็นภาพรวมของกลุ่มดาวทั้งหมดแล้ว จบภารกิจตะลุยอวกาศอย่างสมบูรณ์แบบ!','hr');
+    const {x,W,H}=cv('cv5',1.02); const pad=50,plotW=W-pad-14,plotH=H-16-40;
+    const PX=tx=>pad+tx*plotW, PY=ty=>16+ty*plotH;
+    const pop=[]; const add=(tx,ty,delay,r)=>pop.push({tx,ty,delay,r,col:tempType(txInv(tx))[2]});
+    for(let i=0;i<80;i++){ const tx=Math.random(); add(tx,0.1+tx*0.8+(Math.random()-0.5)*0.05,Math.random()*1.6,1.4+Math.random()*1.4); } // แถบลำดับหลัก
+    for(let i=0;i<20;i++){ add(0.55+Math.random()*0.4,0.16+Math.random()*0.3,0.4+Math.random()*1.6,3+Math.random()*2.2); } // ยักษ์
+    for(let i=0;i<12;i++){ add(0.08+Math.random()*0.86,0.02+Math.random()*0.11,Math.random()*1.6,4+Math.random()*2.5); } // ยักษ์ใหญ่
+    for(let i=0;i<18;i++){ add(0.04+Math.random()*0.42,0.68+Math.random()*0.28,Math.random()*1.8,1.1+Math.random()); } // แคระขาว
+    const maxDelay=2.0, t0=performance.now();
+    loop(now=>{ const el=(now-t0)/1000; x.clearRect(0,0,W,H);
+      const bg=x.createLinearGradient(pad,0,pad+plotW,0);bg.addColorStop(0,'rgba(120,150,255,.16)');bg.addColorStop(.5,'rgba(255,250,210,.08)');bg.addColorStop(1,'rgba(255,110,70,.16)');
+      x.fillStyle=bg;x.fillRect(pad,16,plotW,plotH);
+      x.font='bold 12px sans-serif';x.textAlign='center';
+      [30000,10000,6000,4000,3000].forEach(T=>{const px=PX(txf(T));x.strokeStyle='rgba(255,255,255,.13)';x.beginPath();x.moveTo(px,16);x.lineTo(px,16+plotH);x.stroke();x.fillStyle='#e6ecff';x.fillText(T.toLocaleString(),px,16+plotH+17);});
+      x.textAlign='right';[-5,0,5,10,15].forEach(mg=>{const py=PY(tyf(mg));x.strokeStyle='rgba(255,255,255,.13)';x.beginPath();x.moveTo(pad,py);x.lineTo(pad+plotW,py);x.stroke();x.fillStyle='#e6ecff';x.fillText(mg>0?'+'+mg:''+mg,pad-6,py+4);});
+      x.strokeStyle='rgba(255,255,255,.38)';x.strokeRect(pad,16,plotW,plotH);
+      x.fillStyle='var(--txt)';x.font='11px sans-serif';x.textAlign='center';x.fillText('อุณหภูมิพื้นผิว (K)  ◀ มาก     น้อย ▶',pad+plotW/2,H-4);
+      x.save();x.translate(13,16+plotH/2);x.rotate(-Math.PI/2);x.fillText('โชติมาตรสัมบูรณ์ (ยิ่งน้อยยิ่งสว่าง ↑)',0,0);x.restore();
+      x.save();x.globalCompositeOperation='lighter';
+      pop.forEach(p=>{ const a=Math.max(0,Math.min(1,(el-p.delay)/0.4)); if(a<=0)return; x.globalAlpha=a;
+        const px=PX(p.tx),py=PY(p.ty); const g=x.createRadialGradient(px,py,0,px,py,p.r*2.4);g.addColorStop(0,'#fff');g.addColorStop(.4,p.col);g.addColorStop(1,'rgba(0,0,0,0)');
+        x.fillStyle=g;x.beginPath();x.arc(px,py,p.r*2.4,0,7);x.fill(); });
+      x.restore();
+      stars.forEach(s=>{ const sx=PX(txf(s.T)),sy=PY(tyf(s.mag)); drawStar(x,sx,sy,7,tempType(s.T)[2],now);
+        x.fillStyle='#fff';x.font='9px sans-serif';x.textAlign='center';x.fillText(s.n,sx,sy+16); });
+      if(el>maxDelay*0.6){ x.save();x.globalAlpha=Math.min(.85,el-maxDelay*0.6);x.fillStyle='#fff';x.font='bold 11px sans-serif';x.textAlign='center';
+        x.fillText('แถบลำดับหลัก',PX(0.4),PY(0.45));x.fillText('ดาวยักษ์',PX(0.76),PY(0.24));x.fillText('ดาวยักษ์ใหญ่',PX(0.5),PY(0.06));x.fillText('ดาวแคระขาว',PX(0.18),PY(0.8));x.restore(); }
+    });
+  }
+  function render(){
+    if(stars.every(s=>placed[s.en])){ fillAndFinish(); return; }
+    show(levelHeader(5,'แตะเลือกดาว → ดูคุณสมบัติ → ลากวางตามอุณหภูมิ (K) และโชติมาตร')+
+      nova('แผนภาพ H–R: แกนนอน = <b>อุณหภูมิพื้นผิว (K)</b> เรียงมาก→น้อย (ซ้าย→ขวา) · แกนตั้ง = <b>โชติมาตรสัมบูรณ์</b> (ค่ายิ่งน้อย/ติดลบ = ยิ่งสว่าง อยู่บน) แตะดาวด้านล่างเพื่อดูคุณสมบัติ แล้วลากไปวางให้ตรง')+
+      '<div class="simwrap"><canvas id="cv5"></canvas></div>'+
+      '<div class="card" id="prop5" style="font-size:13px;min-height:52px;display:flex;align-items:center">แตะเลือกดาวด้านล่างเพื่อดูคุณสมบัติ</div>'+
+      '<div class="row" id="chips5" style="gap:6px">'+stars.map(s=>{const col=tempType(s.T)[2];
+        return '<button class="pill" data-en="'+s.en+'" style="flex:1 0 21%;min-width:62px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 3px;'+(placed[s.en]?'opacity:.4':'')+'">'+starDot(col,20)+'<b style="font-size:11px">'+s.n+'</b>'+(placed[s.en]?'<small style="color:var(--good);font-size:9px">✓</small>':'')+'</button>'}).join('')+'</div>'+
+      '<button class="btn orange" style="margin-top:10px" onclick="check5()">ตรวจตำแหน่ง</button>'+
+      hintBox('อุณหภูมิสูง (เช่น 30,000 K) อยู่ซ้าย, ต่ำ (3,000 K) อยู่ขวา · โชติมาตรยิ่งน้อย/ติดลบ ยิ่งสว่าง อยู่สูง')+
+      '<button class="btn ghost" style="margin-top:8px" onclick="mapScreen()">← กลับ</button>');
+    const {c:cvel,x,W,H}=cv('cv5',1.02); const pad=50,plotW=W-pad-14,plotH=H-16-40;
+    const PX=tx=>pad+tx*plotW, PY=ty=>16+ty*plotH;
+    let sel=null,pp=null,drag=false;
+    const clamp=p=>({x:Math.max(pad,Math.min(pad+plotW,p.x)),y:Math.max(16,Math.min(16+plotH,p.y))});
+    cvel.addEventListener('pointerdown',e=>{ if(sel){drag=true;pp=clamp(pos(cvel,e))} });
+    cvel.addEventListener('pointermove',e=>{ if(drag&&sel)pp=clamp(pos(cvel,e)) });
+    window.addEventListener('pointerup',()=>drag=false);
+    document.getElementById('chips5').onclick=e=>{ const b=e.target.closest('[data-en]'); if(!b)return;
+      const s=stars.find(z=>z.en===b.dataset.en); if(placed[s.en])return; sel=s; pp={x:PX(0.5),y:PY(0.5)}; sfx('click');
+      document.getElementById('prop5').innerHTML='<div><b>'+s.n+'</b> ('+s.en+')<br><span style="color:var(--dim)">สเปกตรัม</span> <b style="color:'+tempType(s.T)[2]+'">'+s.sp+'</b> · <span style="color:var(--dim)">มวล</span> <b>'+s.M+'</b> เท่าดวงอาทิตย์ · <span style="color:var(--dim)">โชติมาตรสัมบูรณ์</span> <b>'+(s.mag>0?'+':'')+s.mag+'</b> · <span style="color:var(--dim)">อุณหภูมิ</span> <b>'+s.T.toLocaleString()+' K</b><br><small style="color:var(--gold)">ลากจุดดาวบนกราฟไปวางตามค่านี้</small></div>'; };
+    loop(t=>{ x.clearRect(0,0,W,H);
+      const bg=x.createLinearGradient(pad,0,pad+plotW,0);bg.addColorStop(0,'rgba(120,150,255,.16)');bg.addColorStop(.5,'rgba(255,250,210,.08)');bg.addColorStop(1,'rgba(255,110,70,.16)');
+      x.fillStyle=bg;x.fillRect(pad,16,plotW,plotH);
+      x.lineWidth=1;
+      // แกน X — อุณหภูมิพื้นผิว (K)
+      x.font='bold 12px sans-serif';x.textAlign='center';
+      [30000,10000,6000,4000,3000].forEach(T=>{const px=PX(txf(T));x.strokeStyle='rgba(255,255,255,.13)';x.beginPath();x.moveTo(px,16);x.lineTo(px,16+plotH);x.stroke();x.fillStyle='#e6ecff';x.fillText(T.toLocaleString(),px,16+plotH+17);});
+      // แกน Y — โชติมาตรสัมบูรณ์
+      x.textAlign='right';[-5,0,5,10,15].forEach(mg=>{const py=PY(tyf(mg));x.strokeStyle='rgba(255,255,255,.13)';x.beginPath();x.moveTo(pad,py);x.lineTo(pad+plotW,py);x.stroke();x.fillStyle='#e6ecff';x.fillText(mg>0?'+'+mg:''+mg,pad-6,py+4);});
+      x.strokeStyle='rgba(255,255,255,.38)';x.lineWidth=1;x.strokeRect(pad,16,plotW,plotH);
+      x.fillStyle='var(--txt)';x.font='11px sans-serif';x.textAlign='center';x.fillText('อุณหภูมิพื้นผิว (K)  ◀ มาก     น้อย ▶',pad+plotW/2,H-4);
+      x.save();x.translate(13,16+plotH/2);x.rotate(-Math.PI/2);x.fillText('โชติมาตรสัมบูรณ์ (ยิ่งน้อยยิ่งสว่าง ↑)',0,0);x.restore();
+      // ป้ายบริเวณกลุ่มดาว (จาง ๆ เป็นแนวทาง)
+      x.save();x.globalAlpha=.42;x.font='italic 10px sans-serif';x.fillStyle='#dbe6ff';x.textAlign='center';
+      x.fillText('แถบลำดับหลัก',PX(0.4),PY(0.46));
+      x.fillText('ดาวยักษ์',PX(0.72),PY(0.26));
+      x.fillText('ดาวยักษ์ใหญ่',PX(0.5),PY(0.07));
+      x.fillText('ดาวแคระขาว',PX(0.16),PY(0.82));
+      x.restore();
+      stars.forEach(s=>{ if(placed[s.en]){ const col=tempType(s.T)[2]; const sx=PX(txf(s.T)),sy=PY(tyf(s.mag)); drawStar(x,sx,sy,8,col,t);
+        x.fillStyle='#fff';x.font='9px sans-serif';x.textAlign='center';x.fillText(s.n,sx,sy+17); } });
+      if(sel&&pp){ const col=tempType(sel.T)[2]; drawStar(x,pp.x,pp.y,12,col,t);
+        x.strokeStyle='rgba(255,210,63,.8)';x.setLineDash([4,3]);x.lineWidth=2;x.strokeRect(pp.x-15,pp.y-15,30,30);x.setLineDash([]); }
+    });
+    window.check5=()=>{ if(!sel){toast('แตะเลือกดาวด้านล่างก่อนนะ');return}
+      const tx=(pp.x-pad)/plotW, ty=(pp.y-16)/plotH; const dist=Math.hypot(tx-txf(sel.T),ty-tyf(sel.mag));
+      if(dist<0.14){ placed[sel.en]=true; sfx('good');flash('#caffe0',.3,400);toast('ถูกต้อง! '+sel.n+' ✓'); sel=null;pp=null; setTimeout(render,750); }
+      else{ sfx('bad'); toast('ยังไม่ตรง — เทียบอุณหภูมิ (แกนนอน) และโชติมาตร (แกนตั้ง) ของดาวนี้อีกครั้ง',2200); } };
+  }
+  render();
+}
+
+/* ============================ QUIZ ============================ */
+const QUIZ=[
+ {q:'ดาวฤกษ์เกิดจากอะไร?',o:['ดาวเคราะห์ชนกัน','เมฆแก๊สและฝุ่น (เนบิวลา) ยุบตัว','หลุมดำระเบิด','ดวงอาทิตย์แตกตัว'],a:1,e:'ดาวเกิดจากเนบิวลายุบตัวด้วยแรงโน้มถ่วง'},
+ {q:'แรงใดทำให้เนบิวลายุบตัวรวมกันเป็นดาว?',o:['แรงแม่เหล็ก','แรงโน้มถ่วง','แรงตึงผิว','แรงเสียดทาน'],a:1,e:'แรงโน้มถ่วงดึงสสารเข้าหากัน'},
+ {q:'ปฏิกิริยาฟิวชันในดาวฤกษ์คือข้อใด?',o:['He แตกเป็น H','H 4 ตัวรวมเป็น He + พลังงาน','คาร์บอนเผากับออกซิเจน','อิเล็กตรอนชนกัน'],a:1,e:'ไฮโดรเจน 4 นิวเคลียสรวมเป็นฮีเลียม ปล่อยพลังงาน'},
+ {q:'ดาวฤกษ์คงรูปอยู่ได้เพราะสมดุลของแรงคู่ใด?',o:['แม่เหล็ก vs ไฟฟ้า','แรงโน้มถ่วง(เข้า) vs ความดันฟิวชัน(ออก)','แรงตึงผิว vs ความดัน','แรงนิวเคลียร์ vs โน้มถ่วง'],a:1,e:'เรียกว่าสมดุลอุทกสถิต'},
+ {q:'โปรโตสตาร์มวลน้อยกว่า 0.08 เท่าดวงอาทิตย์ จะกลายเป็น?',o:['ดาวแคระขาว','ดาวนิวตรอน','ดาวแคระน้ำตาล','หลุมดำ'],a:2,e:'มวลน้อยเกินไป แกนร้อนไม่พอจุดฟิวชัน'},
+ {q:'ดาวสีใดมีอุณหภูมิสูงที่สุด?',o:['แดง','เหลือง','ขาว','น้ำเงิน'],a:3,e:'เรียงร้อน→เย็น: น้ำเงิน-ขาว-เหลือง-แดง'},
+ {q:'ข้อใดถูกเกี่ยวกับ "โชติมาตร"?',o:['ตัวเลขมาก = สว่างมาก','ตัวเลขน้อย/ติดลบ = สว่างมาก','ไม่เกี่ยวกับความสว่าง','วัดเฉพาะสีดาว'],a:1,e:'สเกลกลับด้าน เช่น ดวงอาทิตย์ −26.7 สว่างที่สุด'},
+ {q:'ดาวฤกษ์แบบดวงอาทิตย์ (0.08–8 เท่า) จะจบชีวิตเป็น?',o:['หลุมดำ','ดาวนิวตรอน','ดาวแคระขาว','ดาวแคระน้ำตาล'],a:2,e:'ผ่านยักษ์แดง→เนบิวลาดาวเคราะห์→ดาวแคระขาว'},
+ {q:'ดาวมวลมากกว่า 25 เท่าดวงอาทิตย์ จบชีวิตเป็น (หลังซูเปอร์โนวา)?',o:['ดาวแคระขาว','หลุมดำ','ดาวแคระน้ำตาล','ดาวเคราะห์'],a:1,e:'มวลมากเกินจนยุบเป็นหลุมดำ'},
+ {q:'บนแผนภาพ H–R ดาวกลุ่มใดอยู่มากที่สุด (รวมดวงอาทิตย์)?',o:['ดาวยักษ์','ดาวแคระขาว','แถบลำดับหลัก','ซูเปอร์โนวา'],a:2,e:'ดาวราว 90% อยู่บนแถบลำดับหลัก'},
+];
+let qi=0,qscore=0,qorder=[];
+function startQuiz(){ sfx('click'); qi=0;qscore=0; qorder=QUIZ.map((q,i)=>i); shuffle(qorder); curScreen='quiz';updProg(); renderQ(); }
+function renderQ(){
+  if(qi>=qorder.length){ return quizDone(); }
+  const q=QUIZ[qorder[qi]]; const opts=q.o.map((t,i)=>({t,i})); shuffle(opts);
+  show('<div class="row" style="justify-content:space-between"><h2>📝 แบบทดสอบ</h2><span class="pill">ข้อ '+(qi+1)+'/'+qorder.length+'</span></div>'+
+    '<div class="card"><b style="font-size:16px">'+q.q+'</b>'+
+    '<div id="opts" style="margin-top:10px">'+opts.map(o=>'<div class="opt" data-i="'+o.i+'">'+o.t+'</div>').join('')+'</div><div id="exp"></div></div>');
+  let answered=false;
+  $('#opts').onclick=e=>{ const tl=e.target.closest('.opt'); if(!tl||answered)return; answered=true;
+    const pick=+tl.dataset.i, correct=q.a;
+    document.querySelectorAll('.opt').forEach(o=>{ const oi=+o.dataset.i; if(oi===correct)o.classList.add('correct'); if(oi===pick&&pick!==correct)o.classList.add('wrong'); o.style.pointerEvents='none'; });
+    if(pick===correct){qscore++;sfx('good')}else sfx('bad');
+    $('#exp').innerHTML='<div class="card" style="margin:12px 0 0;background:rgba(22,87,199,.15)">'+
+      (pick===correct?'<b class="ok">✓ ถูกต้อง!</b>':'<b class="no">✗ ยังไม่ใช่</b>')+'<p style="margin:6px 0 0;font-size:14px">'+q.e+'</p></div>'+
+      '<button class="btn orange" style="margin-top:12px" onclick="qi++;renderQ()">'+(qi+1<qorder.length?'ข้อต่อไป →':'ดูผลคะแนน')+'</button>';
+  };
+}
+function quizDone(){ const pct=Math.round(qscore/QUIZ.length*100); S.quiz={score:qscore,total:QUIZ.length,pct}; save(); sfx('success'); summary(); }
+
+/* ============================ SUMMARY ============================ */
+function summary(){
+  curScreen='summary'; updProg(); flash('#ffe9b0',.4,700);
+  const tot=totalStars(),max=15,q=S.quiz; const cardCount=Object.keys(CARDS).filter(k=>S.cards[k]).length;
+  show('<div class="center fade" style="margin-top:12px"><div class="big" style="font-size:52px">🏆</div><h1>ภารกิจสำเร็จ!</h1></div>'+
+    '<div class="card center"><div style="font-size:14px;color:var(--dim)">นักสำรวจ</div>'+
+    '<div style="font-size:20px;font-weight:800">'+S.name+'</div><div style="color:var(--dim);font-size:14px">'+(S.room||'')+'</div>'+
+    '<hr style="border-color:var(--line);margin:14px 0">'+
+    '<div style="font-size:14px;color:var(--dim)">ดาวสะสมจากด่าน</div>'+
+    '<div class="scorebox" style="font-size:38px">'+tot+' <span style="font-size:20px">/ '+max+' ★</span></div>'+
+    (q?'<div style="font-size:14px;color:var(--dim);margin-top:10px">คะแนนแบบทดสอบ</div><div class="scorebox">'+q.score+'<span style="font-size:22px">/'+q.total+'</span></div><div class="pill" style="margin-top:6px">'+q.pct+'%</div>':'')+
+    '<div class="pill" style="margin-top:12px">📒 การ์ดสะสม '+cardCount+'/'+Object.keys(CARDS).length+' ใบ</div>'+
+    '<div class="row" style="justify-content:center;gap:6px;margin-top:12px">'+LV.map(l=>'<div class="pill" style="font-size:12px">'+l.icon+' '+(done(l.id)?starStr(S.stars[l.id]):'—')+'</div>').join('')+'</div></div>'+
+    nova('เยี่ยมมาก '+S.name+'! เธอเดินทางครบวงจรชีวิตของดาวแล้ว 🌟 <b>แคปหน้าจอนี้ส่งให้คุณครู</b> เป็นหลักฐานการเรียนรู้นะ')+
+    '<button class="btn orange" onclick="toast(\'กดปุ่มแคปหน้าจอของเครื่อง แล้วส่งรูปให้คุณครู 📲\',2600)">📸 แคปหน้าจอส่งครู</button>'+
+    '<button class="btn ghost" style="margin-top:8px" onclick="codexScreen()">📒 ดูสมุดสะสม</button>'+
+    '<button class="btn ghost" style="margin-top:8px" onclick="mapScreen()">กลับแผนที่</button>');
+}
+
+/* ============================ STARFIELD ============================ */
+(function(){ const c=document.getElementById('stars'),x=c.getContext('2d');
+  function rs(){c.width=innerWidth;c.height=innerHeight} rs();addEventListener('resize',rs);
+  const st=[];for(let i=0;i<140;i++)st.push({x:Math.random()*c.width,y:Math.random()*c.height,r:Math.random()*1.4,t:Math.random()*7,sp:.02+Math.random()*.05});
+  let shoot=null,next=Date.now()+4000;
+  (function d(){x.clearRect(0,0,c.width,c.height);const now=Date.now()/700;
+   for(const s of st){const tw=.5+.5*Math.sin(now+s.t);x.fillStyle='rgba(255,255,255,'+tw*.85+')';x.beginPath();x.arc(s.x,s.y,s.r,0,7);x.fill();}
+   if(!shoot&&Date.now()>next){shoot={x:Math.random()*c.width*.6,y:Math.random()*c.height*.4,life:1};}
+   if(shoot){x.save();x.globalCompositeOperation='lighter';x.strokeStyle='rgba(180,210,255,'+shoot.life+')';x.lineWidth=2;
+     x.beginPath();x.moveTo(shoot.x,shoot.y);x.lineTo(shoot.x+120*(1-shoot.life),shoot.y+70*(1-shoot.life));x.stroke();x.restore();
+     shoot.life-=.02; if(shoot.life<=0){shoot=null;next=Date.now()+5000+Math.random()*5000;}}
+   requestAnimationFrame(d)})();
+})();
+
+preload();
+startScreen();
+</script>
+</body>
+</html>
