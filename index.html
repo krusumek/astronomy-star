@@ -86,6 +86,7 @@
   .mtile{border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:13px;text-align:center;font-size:13px;cursor:pointer;transition:.15s}
   .mtile.sel{border-color:var(--orange);background:rgba(238,106,31,.22)}
   .mtile.done{border-color:var(--good);background:rgba(57,217,138,.18);opacity:.65;pointer-events:none}
+  .mtile.wrong{border-color:var(--bad);background:rgba(255,93,108,.22)}
   .center{text-align:center}
   .big{font-size:40px;margin:6px}
   .toast{position:fixed;left:50%;top:16%;transform:translateX(-50%);z-index:40;background:var(--navy);
@@ -95,6 +96,25 @@
   .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:99px;background:var(--orange);color:#fff;font-weight:700}
   .scorebox{font-size:48px;font-weight:900;color:var(--gold)}
   .ok{color:var(--good)} .no{color:var(--bad)}
+  /* score + combo HUD */
+  .lvlhud{display:flex;align-items:center;gap:8px;font-size:13px;margin:0 0 4px}
+  .lvlhud .sc{font-weight:800;color:var(--gold)}
+  .lvlhud .cb{font-weight:800;color:var(--orange);animation:pop .35s}
+  /* predict-then-reveal overlay */
+  .predictov{position:fixed;inset:0;z-index:55;background:rgba(3,5,20,.82);backdrop-filter:blur(3px);
+    display:flex;align-items:center;justify-content:center;padding:18px;animation:fade .3s}
+  .predictcard{background:linear-gradient(160deg,#12204e,#0a1230);border:1px solid var(--line2,rgba(120,150,210,.32));
+    border-radius:20px;padding:20px;max-width:460px;width:100%;box-shadow:0 18px 50px rgba(0,0,0,.6);animation:pop .4s}
+  .predictcard .ptitle{font-size:13px;font-weight:800;color:var(--gold);letter-spacing:.5px;margin-bottom:8px}
+  .predictcard .pq{font-size:16px;font-weight:800;line-height:1.5}
+  .predictcard .popt{border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:13px;margin:8px 0;
+    cursor:pointer;font-size:15px;transition:.15s;text-align:left;width:100%;color:var(--txt)}
+  .predictcard .popt:active{transform:scale(.98)}
+  .predictcard .popt.correct{border-color:var(--good);background:rgba(57,217,138,.22)}
+  .predictcard .popt.wrong{border-color:var(--bad);background:rgba(255,93,108,.22)}
+  .predictcard .pexp{font-size:14px;margin-top:6px;line-height:1.5}
+  .predictcard .pgood{color:var(--good);font-weight:800}
+  .predictcard .pbad{color:#ffb0b8}
   /* collectible cards */
   .codexgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
   .ccard{border-radius:14px;overflow:hidden;border:1px solid var(--line);background:#0a1230;position:relative;aspect-ratio:3/4}
@@ -205,7 +225,7 @@ const HRSTARS=[
 const KEY='spacequest_stars_v2';
 let S = load();
 function load(){ try{return Object.assign(blank(),JSON.parse(localStorage.getItem(KEY))||{})}catch(e){return blank()} }
-function blank(){ return {name:'',room:'',stars:{},quiz:null,cards:{}} }
+function blank(){ return {name:'',room:'',stars:{},quiz:null,cards:{},levelScores:{}} }
 function save(){ localStorage.setItem(KEY, JSON.stringify(S)) }
 function totalStars(){ return Object.values(S.stars).reduce((a,b)=>a+b,0) }
 function done(id){ return S.stars[id]!==undefined }
@@ -326,6 +346,37 @@ function hintBox(text){ return '<div id="hintArea" style="margin-top:8px"></div>
   '<button class="hintbtn" onclick="useHint(this)" data-h="'+text.replace(/"/g,'&quot;')+'">💡 ขอตัวช่วยจากน้องโนวา</button>' }
 function useHint(b){ HINTS++; sfx('click'); $('#hintArea').innerHTML=nova(b.getAttribute('data-h')); }
 
+/* ===== ระบบคะแนน + คอมโบ (โชว์สดในด่าน · ดาวเป็นเกรดสรุป) ===== */
+let LVLSCORE=0, COMBO=0, WRONG=0, MAXCOMBO=0;
+function resetScore(){ LVLSCORE=0; COMBO=0; WRONG=0; MAXCOMBO=0; }
+function scoreRight(base){ COMBO++; if(COMBO>MAXCOMBO)MAXCOMBO=COMBO; const mult=Math.min(COMBO,5);
+  const gain=(base||10)*mult; LVLSCORE+=gain; sfx('good'); updHUD(); return {gain,mult}; }
+function scoreWrong(){ COMBO=0; WRONG++; sfx('bad'); updHUD(); }
+function hudBar(){ return '<div class="lvlhud">💯 คะแนน <span class="sc" id="hudScore">'+LVLSCORE+'</span>'+
+  (COMBO>1?' · <span class="cb" id="hudCombo">🔥 คอมโบ x'+Math.min(COMBO,5)+'</span>':'<span id="hudCombo"></span>')+'</div>' }
+function updHUD(){ const s=document.getElementById('hudScore'); if(s)s.textContent=LVLSCORE;
+  const c=document.getElementById('hudCombo'); if(c)c.innerHTML=COMBO>1?'🔥 คอมโบ x'+Math.min(COMBO,5):''; if(c&&COMBO>1)c.className='cb'; }
+function saveLevelScore(id){ if(!S.levelScores)S.levelScores={}; if(!(id in S.levelScores)||LVLSCORE>S.levelScores[id]){S.levelScores[id]=LVLSCORE} save(); }
+/* ทายก่อนดู — overlay ใช้ซ้ำทุกด่าน · opt:[{t,ok}] · เรียก onPass เมื่อตอบถูก */
+function predictGate(q, options, explain, onPass, base){
+  const ov=document.createElement('div'); ov.className='predictov';
+  ov.innerHTML='<div class="predictcard"><div class="ptitle">🔮 ทายก่อน! (ตอบถูกได้คะแนน+คอมโบ)</div>'+
+    '<div class="pq">'+q+'</div><div class="popts" style="margin-top:10px">'+
+    options.map((o,i)=>'<button class="popt" data-i="'+i+'">'+o.t+'</button>').join('')+
+    '</div><div class="pexp"></div></div>';
+  document.getElementById('app').appendChild(ov);
+  let done=false;
+  ov.querySelector('.popts').onclick=e=>{ const b=e.target.closest('.popt'); if(!b||done)return;
+    const o=options[+b.dataset.i];
+    if(o.ok){ done=true; b.classList.add('correct'); const r=scoreRight(base||10);
+      ov.querySelector('.pexp').innerHTML='<div class="pgood">✓ ถูกต้อง! +'+r.gain+(r.mult>1?' (คอมโบ x'+r.mult+' 🔥)':'')+'</div>';
+      ov.querySelectorAll('.popt').forEach(p=>p.style.pointerEvents='none');
+      setTimeout(()=>{ ov.remove(); onPass&&onPass(); },1000); }
+    else{ b.classList.add('wrong'); scoreWrong();
+      ov.querySelector('.pexp').innerHTML='<div class="pbad">✗ ยังไม่ใช่ — '+(explain||'ลองคิดอีกครั้งดูนะ')+'</div>';
+      setTimeout(()=>b.classList.remove('wrong'),600); } };
+}
+
 /* ============================ START ============================ */
 function startScreen(){
   curScreen='start'; updProg();
@@ -388,18 +439,22 @@ document.getElementById('musicBtn').onclick=()=>{ ensureAC(); if(AC.state==='sus
 document.getElementById('sfxBtn').onclick=()=>{ soundOn=!soundOn; document.getElementById('sfxBtn').classList.toggle('off',!soundOn); document.getElementById('sfxBtn').textContent=soundOn?'🔊':'🔈'; if(soundOn)sfx('click') };
 
 /* ============================ LEVEL ROUTER & COMPLETE ============================ */
-function openLevel(id){ sfx('click'); HINTS=0; ({1:level1,2:level2,3:level3,4:level4,5:level5})[id]() }
+function openLevel(id){ sfx('click'); HINTS=0; resetScore(); ({1:level1,2:level2,3:level3,4:level4,5:level5})[id]() }
 function levelHeader(id,sub){ const l=LV.find(x=>x.id===id);
-  return '<h2>'+l.icon+' ด่าน '+id+' · '+l.name+'</h2><p style="color:var(--dim);margin-top:-6px;font-size:13px">'+sub+'</p>' }
+  return hudBar()+'<h2>'+l.icon+' ด่าน '+id+' · '+l.name+'</h2><p style="color:var(--dim);margin-top:-6px;font-size:13px">'+sub+'</p>' }
 function completeLevel(id,hints,msg,cardKey){
-  const st=award(id,hints); sfx('success'); flash('#ffe9b0',.5,700); curScreen='map'; updProg();
+  if(MAXCOMBO>0)LVLSCORE+=MAXCOMBO*20; const st=award(id,(hints||0)+WRONG); saveLevelScore(id);
+  sfx('success'); flash('#ffe9b0',.5,700); curScreen='map'; updProg();
   const c = cardKey?CARDS[cardKey]:null;
   if(cardKey)unlockCard(cardKey);
   setTimeout(()=>sfx('card'),400);
+  const perfect=(hints||0)+WRONG===0;
   show('<div class="center fade" style="margin-top:18px"><div class="big" style="font-size:54px">🎉</div>'+
     '<h2>ผ่านด่าน '+id+' แล้ว!</h2>'+
     '<div style="font-size:38px;color:var(--gold);letter-spacing:4px">'+starStr(st)+'</div>'+
-    '<p style="color:var(--dim);margin-top:2px">ได้ '+st+' ดาว'+(hints>0?' (ใช้ตัวช่วย '+hints+' ครั้ง)':' — ไม่ใช้ตัวช่วยเลย!')+'</p></div>'+
+    '<p style="color:var(--dim);margin-top:2px">ได้ '+st+' ดาว'+(perfect?' — ไม่พลาดเลย! 🏆':(hints>0?' · ตัวช่วย '+hints+' ครั้ง':'')+(WRONG>0?' · ตอบผิด '+WRONG+' ครั้ง':''))+'</p>'+
+    '<div class="scorebox" style="font-size:30px;margin-top:4px">'+LVLSCORE+' คะแนน</div>'+
+    (MAXCOMBO>1?'<p style="color:var(--orange);font-size:13px;margin-top:2px">🔥 คอมโบสูงสุด x'+Math.min(MAXCOMBO,5)+' (+โบนัส '+MAXCOMBO*20+')</p>':'')+'</div>'+
     (c?'<p class="center" style="color:var(--gold);font-weight:700;margin:4px">🎁 ปลดล็อกการ์ดใหม่!</p>'+
       '<div class="reveal"><div class="pic" style="background-image:url(\''+c.img+'\')"></div><div class="em">'+c.em+'</div>'+
       '<div class="ov"><b>'+c.t+'</b><p>'+c.fact+'</p></div></div>':'')+
@@ -461,7 +516,12 @@ function level1(){
   });
   function ignite(){ if(ignited)return; ignited=true; sfx('ignite'); flash('#fff',.9,650); shake(500,12); vib(120); toast('💥 จุดกำเนิดโปรโตสตาร์!');
     mkBurst(parts,cx,cy,60,{col:'255,220,150',spd:6,size:4,decay:.01});
-    setTimeout(()=>completeLevel(1,HINTS,'เกิด <b>โปรโตสตาร์</b> แล้ว! แต่มันยังไม่ "ติดไฟ" จริง ไปจุดไฟด้วยฟิวชันในด่าน 2 กันต่อ!','protostar'),1500); }
+    setTimeout(()=>predictGate(
+      'ก่อนจะผ่านด่าน — <b>แรงใด</b>ที่ดึงแก๊สในเนบิวลาให้ยุบตัวรวมกันจนเกิดเป็นดาว?',
+      [{t:'🧲 แรงแม่เหล็ก'},{t:'🌍 แรงโน้มถ่วง',ok:true},{t:'💧 แรงตึงผิว'},{t:'🔥 แรงเสียดทาน'}],
+      'แก๊สมีมวล จึงดึงดูดกันด้วย <b>แรงโน้มถ่วง</b> — ยิ่งรวมมวลมาก แรงยิ่งมากจนยุบตัวเป็นดาว',
+      ()=>completeLevel(1,HINTS,'เกิด <b>โปรโตสตาร์</b> แล้ว! แต่มันยังไม่ "ติดไฟ" จริง ไปจุดไฟด้วยฟิวชันในด่าน 2 กันต่อ!','protostar'),
+      15),1400); }
 }
 
 /* ============================ LEVEL 2 ============================ */
@@ -488,25 +548,48 @@ function phase2a(){
   sl.addEventListener('input',()=>sfx('click'));
 }
 function phase2b(){
-  sfx('ignite'); flash('#fff',.7,500); shake(350,8); vib(60);
-  show(levelHeader(2,'เฟส 2/3 · ปฏิกิริยาฟิวชัน')+
-    nova('นี่คือ <b>ฟิวชัน</b>! ไฮโดรเจน (H) 4 นิวเคลียส รวมเป็นฮีเลียม (He) 1 นิวเคลียส แล้วปล่อย<b>พลังงานมหาศาล</b> ☀️')+
+  sfx('click');
+  /* ทายก่อน แล้วค่อยลงมือลากทำฟิวชันเอง */
+  predictGate(
+    'พอแกนร้อนพอ <b>ฟิวชัน</b>ก็เริ่ม! เมื่อ<b>ไฮโดรเจน (H) 4 นิวเคลียส</b>หลอมรวมกัน จะได้ธาตุใด + พลังงาน?',
+    [{t:'⚪ He ฮีเลียม',ok:true},{t:'⚫ C คาร์บอน'},{t:'💧 H₂O น้ำ'},{t:'🔵 O ออกซิเจน'}],
+    'ในแถบลำดับหลัก H 4 ตัวหลอมรวมเป็น <b>ฮีเลียม (He)</b> พร้อมปล่อยพลังงานมหาศาล',
+    ()=>phase2bPlay(), 15);
+}
+function phase2bPlay(){
+  flash('#fff',.5,420); shake(260,6); vib(40);
+  show(levelHeader(2,'เฟส 2/3 · ลงมือทำฟิวชันเอง!')+
+    nova('เยี่ยม! ตอนนี้ <b>ลากนิวเคลียส H (สีฟ้า) ทีละตัว</b> เข้าไปชนที่แกนกลางให้ครบ <b>4 ตัว</b> เพื่อหลอมรวมเป็นฮีเลียม (He) + พลังงาน! ☀️')+
     '<div class="simwrap"><canvas id="cv2b"></canvas></div>'+
+    '<div class="row" style="justify-content:space-between"><span>หลอมรวมแล้ว</span><b id="fus2b">0 / 4 H</b></div><div class="meter"><span id="fusbar"></span></div>'+
+    hintBox('แตะที่ลูก H (ฟ้า) ค้างแล้วลากเข้าหาแกนกลางที่เรืองแสง — ครบ 4 ตัวจะระเบิดเป็น He')+
     '<button class="btn orange" id="next2b" disabled onclick="phase2c()">ไปเฟสสุดท้าย →</button>'+
     '<button class="btn ghost" style="margin-top:10px" onclick="mapScreen()">← กลับ</button>');
-  const {x,W,H}=cv('cv2b',0.72); const cx=W/2,cy=H/2; let t=0; const parts=[]; let banged=false;
-  const protons=[{a:0},{a:1.57},{a:3.14},{a:4.71}];
-  loop(()=>{ t+=0.014; x.clearRect(0,0,W,H);
-    if(t<1.4){ const r=95*(1-Math.min(1,t)); protons.forEach((p,i)=>{ const ang=p.a+t*1.5; const px=cx+Math.cos(ang)*r,py=cy+Math.sin(ang)*r;
-        x.save();x.globalCompositeOperation='lighter'; let g=x.createRadialGradient(px,py,0,px,py,16);g.addColorStop(0,'#cfe0ff');g.addColorStop(1,'rgba(80,120,255,0)');x.fillStyle=g;x.beginPath();x.arc(px,py,16,0,7);x.fill();x.restore();
-        x.fillStyle='#bcd0ff';x.beginPath();x.arc(px,py,8,0,7);x.fill(); x.fillStyle='#06143a';x.font='bold 10px sans-serif';x.textAlign='center';x.fillText('H',px,py+3); });
-    } else { if(!banged){banged=true;sfx('good');flash('#fff7d6',.8,500);mkBurst(parts,cx,cy,40,{col:'255,230,160',spd:5,size:3});vib(40);}
-      const fl=Math.min(1,(t-1.4)*1.5); drawStar(x,cx,cy,26+10*fl,'#ffcf5e',t*60);
-      x.fillStyle='#3a2a00';x.font='bold 13px sans-serif';x.textAlign='center';x.fillText('He',cx,cy+4);
-      // energy rings
-      x.save();x.globalCompositeOperation='lighter';for(let k=0;k<3;k++){const rr=((t*120+k*40)%160);x.globalAlpha=Math.max(0,.5-rr/320);x.strokeStyle='#ffe8a0';x.lineWidth=3;x.beginPath();x.arc(cx,cy,rr,0,7);x.stroke();}x.restore();
-      if(fl>=1)$('#next2b').disabled=false;
-    }
+  const {c,x,W,H}=cv('cv2b',0.8); const cx=W/2,cy=H/2; const coreR=24;
+  let count=0, banged=false; const parts=[];
+  const Hs=[]; for(let i=0;i<4;i++){ const a=i/4*Math.PI*2+0.5; const rr=Math.min(W,H)*0.36;
+    Hs.push({x:cx+Math.cos(a)*rr,y:cy+Math.sin(a)*rr,absorbed:false}); }
+  let dragIdx=-1;
+  c.addEventListener('pointerdown',e=>{ const p=pos(c,e); dragIdx=Hs.findIndex(h=>!h.absorbed&&Math.hypot(h.x-p.x,h.y-p.y)<26); });
+  c.addEventListener('pointermove',e=>{ if(dragIdx<0||Hs[dragIdx].absorbed)return; const p=pos(c,e); Hs[dragIdx].x=p.x; Hs[dragIdx].y=p.y; });
+  window.addEventListener('pointerup',()=>{ dragIdx=-1; });
+  loop(t=>{ x.clearRect(0,0,W,H);
+    const cr = banged? coreR+10 : coreR+count*3;
+    drawStar(x,cx,cy,cr, banged?'#ffcf5e':'#7fa0ff', t);
+    if(banged){ x.fillStyle='#3a2a00';x.font='bold 14px sans-serif';x.textAlign='center';x.fillText('He',cx,cy+5);
+      x.save();x.globalCompositeOperation='lighter';for(let k=0;k<3;k++){const rr=((t*0.12+k*40)%170);x.globalAlpha=Math.max(0,.5-rr/340);x.strokeStyle='#ffe8a0';x.lineWidth=3;x.beginPath();x.arc(cx,cy,rr,0,7);x.stroke();}x.restore(); }
+    else { x.fillStyle='rgba(255,255,255,.55)';x.font='11px sans-serif';x.textAlign='center';x.fillText('แกนดาว',cx,cy+3); }
+    Hs.forEach(h=>{ if(h.absorbed)return;
+      if(Math.hypot(h.x-cx,h.y-cy)<coreR+12){ h.absorbed=true; count++; mkBurst(parts,h.x,h.y,10,{col:'150,190,255',spd:2.5,size:2}); sfx('good'); vib(20);
+        $('#fus2b').textContent=count+' / 4 H'; $('#fusbar').style.width=(count/4*100)+'%';
+        if(count>=4&&!banged){ banged=true; sfx('ignite'); flash('#fff7d6',.85,520); shake(320,9); vib(60);
+          mkBurst(parts,cx,cy,50,{col:'255,230,160',spd:5,size:3,decay:.01}); scoreRight(20);
+          toast('💥 หลอมรวมเป็นฮีเลียมสำเร็จ! +พลังงาน');
+          setTimeout(()=>{ const nb=$('#next2b'); if(nb)nb.disabled=false; },500); }
+        return; }
+      x.save();x.globalCompositeOperation='lighter'; let g=x.createRadialGradient(h.x,h.y,0,h.x,h.y,16);g.addColorStop(0,'#cfe0ff');g.addColorStop(1,'rgba(80,120,255,0)');x.fillStyle=g;x.beginPath();x.arc(h.x,h.y,16,0,7);x.fill();x.restore();
+      x.fillStyle='#bcd0ff';x.beginPath();x.arc(h.x,h.y,11,0,7);x.fill(); x.fillStyle='#06143a';x.font='bold 11px sans-serif';x.textAlign='center';x.fillText('H',h.x,h.y+3);
+    });
     stepParts(x,parts);
   });
 }
@@ -557,6 +640,14 @@ function phase2c(){
 function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]} return a }
 function starDot(col,size){ return '<span style="display:inline-block;width:'+size+'px;height:'+size+'px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff,'+col+' 72%);box-shadow:0 0 '+(size/2)+'px '+col+'"></span>' }
 function level3(){
+  /* เดาก่อนสำรวจ (predict-observe) แล้วค่อยเลื่อนสไลเดอร์พิสูจน์ */
+  predictGate(
+    'เดาก่อนสำรวจ! ระหว่าง<b>ดาวสีน้ำเงิน</b> กับ <b>ดาวสีแดง</b> ดวงไหน<b>ร้อนกว่า</b>?',
+    [{t:'🔵 ดาวสีน้ำเงินร้อนกว่า',ok:true},{t:'🔴 ดาวสีแดงร้อนกว่า'},{t:'⚖️ ร้อนเท่ากัน'}],
+    'ลองเลื่อนสไลเดอร์ในด่านนี้พิสูจน์ดูสิ — สีน้ำเงิน = ร้อนที่สุด, สีแดง = เย็นที่สุด',
+    ()=>level3explore(), 10);
+}
+function level3explore(){
   const stars=REALSTARS.slice().sort((a,b)=>b.T-a.T);
   show(levelHeader(3,'เลื่อนปรับ "อุณหภูมิ" แล้วดูสีของดาวเปลี่ยน — สีบอกอุณหภูมิ')+
     nova('ความลับ: <b>สีของดาวบอกอุณหภูมิพื้นผิว</b>! เลื่อนแถบอุณหภูมิดูสิ — ดาวร้อน = สีน้ำเงิน ดาวเย็น = สีแดง แล้วดูดาวจริงด้านล่างว่าสีตรงกับอุณหภูมิอย่างไร')+
@@ -594,12 +685,18 @@ function level3test(){
       '<div class="codexgrid" id="opt3">'+opts.map(s=>{const col=tempType(s.T)[2];
         return '<div class="opt" data-en="'+s.en+'" style="text-align:center;padding:16px 8px;margin:0">'+starDot(col,46)+
           '<div style="margin-top:8px;font-weight:700">'+s.n+'</div><small style="color:var(--dim)">'+s.en+'</small></div>'}).join('')+'</div>'+
+      '<div id="exp3"></div>'+
       hintBox('สีของดาวบอกอุณหภูมิ: ยิ่งร้อน(K สูง)→น้ำเงิน, ยิ่งเย็น(K ต่ำ)→แดง · เทียบกับการ์ดดาวที่เพิ่งดู')+
       '<button class="btn ghost" style="margin-top:8px" onclick="mapScreen()">← กลับ</button>');
     let answered=false;
     $('#opt3').onclick=e=>{ const tl=e.target.closest('.opt'); if(!tl||answered)return;
-      if(tl.dataset.en===target.en){ answered=true; tl.classList.add('correct'); sfx('good'); toast('ถูกต้อง! ('+target.n+')'); qi++; setTimeout(render,750); }
-      else{ tl.classList.add('wrong'); sfx('bad'); setTimeout(()=>tl.classList.remove('wrong'),500); } };
+      if(tl.dataset.en===target.en){ answered=true; tl.classList.add('correct'); const r=scoreRight(10);
+        toast('ถูกต้อง! ('+target.n+') +'+r.gain+(r.mult>1?' 🔥x'+r.mult:'')); qi++; setTimeout(render,850); }
+      else{ const picked=pool.find(s=>s.en===tl.dataset.en); tl.classList.add('wrong'); scoreWrong();
+        const pc=tempType(picked.T), tc=tempType(target.T);
+        $('#exp3').innerHTML='<div class="card" style="margin:10px 0 0;background:rgba(255,93,108,.12)"><b class="no">✗ ยังไม่ใช่</b>'+
+          '<p style="margin:5px 0 0;font-size:13px">'+picked.n+' เป็นสเปกตรัม '+picked.sp+' (~'+picked.T.toLocaleString()+' K, สี'+pc[1]+') · โจทย์ต้องการดาว ~'+target.T.toLocaleString()+' K สี'+tc[1]+' — ดูสีให้ตรงอุณหภูมิ</p></div>';
+        setTimeout(()=>tl.classList.remove('wrong'),600); } };
   }
   render();
 }
@@ -660,7 +757,7 @@ function pickCase4(key){ sfx('click'); const c=CASES.find(x=>x.key===key); let i
       '<div class="row" style="gap:8px;margin-top:8px">'+
         '<button class="btn ghost" style="flex:1" '+(idx===0?'disabled':'')+' onclick="_st4('+(idx-1)+')">◀ ก่อนหน้า</button>'+
         (last?'<button class="btn orange" style="flex:1" onclick="_done4()">เก็บการ์ด ✓</button>'
-             :'<button class="btn orange" style="flex:1" onclick="_st4('+(idx+1)+')">ถัดไป ▶</button>')+'</div>'+
+             :'<button class="btn orange" style="flex:1" onclick="_next4()">ทายขั้นถัดไป ▶</button>')+'</div>'+
       '<button class="btn ghost" style="margin-top:8px" onclick="renderCases4()">← เลือกกรณีอื่น</button>');
     const {x,W,H}=cv('cv4',0.66); const cx=W/2,cy=H/2;
     loop(t=>{ x.clearRect(0,0,W,H); const im=st.img?getImg(IMG[st.img]):null;
@@ -672,17 +769,54 @@ function pickCase4(key){ sfx('click'); const c=CASES.find(x=>x.key===key); let i
       else drawStar(x,cx,cy,Math.min(W,H)*st.rf,st.col,t);
     });
     window._st4=i=>{ sfx('click'); idx=i; render(); };
+    window._next4=()=>{ const clean=s=>s.replace(/\s*\(.*\)/,'');
+      const cur=clean(c.stages[idx].t), correct=clean(c.stages[idx+1].t);
+      const pool=[...new Set([].concat(...CASES.map(cc=>cc.stages.map(s=>clean(s.t)))))];
+      const distract=shuffle(pool.filter(t=>t!==correct&&t!==cur)).slice(0,2);
+      const opts=shuffle([{t:correct,ok:true},...distract.map(t=>({t}))]);
+      predictGate('หลังจาก "<b>'+cur+'</b>" ดาวดวงนี้จะกลายเป็นอะไรต่อ?',
+        opts,'ดูแถบลำดับด้านบนประกอบ แล้วลองใหม่ดูนะ',()=>_st4(idx+1),12);
+    };
     window._done4=()=>{ unlockCard(c.key); sfx('card');
       const fate=['bd','wd','ns','bh'].filter(k=>S.cards[k]).length;
       toast(c.icon+' เก็บการ์ด '+c.label+'! ('+fate+'/4)',1600);
-      if(fate>=4){ setTimeout(()=>completeLevel(4,HINTS,'ครบทั้ง 4 ชะตากรรม! นี่คือ <b>วงจรชีวิตของดาว</b> — เกิดจากเนบิวลา และบางส่วนกลายเป็นเนบิวลาใหม่ให้ดาวรุ่นต่อไป ✨ (ดูการ์ดทั้งหมดได้ในสมุดสะสม)',null),700); }
+      if(fate>=4){ setTimeout(gate4match,900); }
       else setTimeout(renderCases4,1300);
     };
   }
   render();
 }
+/* จุดตรวจท้ายด่าน 4 — จับคู่ มวลตั้งต้น ↔ จุดจบของดาว */
+function gate4match(){
+  sfx('click');
+  const left=CASES.map(c=>({id:c.key,txt:'มวล '+c.mass,icon:c.icon}));
+  const right=shuffle(CASES.map(c=>({id:c.key,txt:c.icon+' '+c.label})));
+  const matched={}; let sel=null, doneCount=0;
+  show(levelHeader(4,'จุดตรวจ · จับคู่ "มวลตั้งต้น" ↔ "จุดจบของดาว"')+
+    nova('ก่อนผ่านด่าน — จับคู่ให้ถูก! แตะ<b>ช่วงมวล</b>ทางซ้าย แล้วแตะ<b>จุดจบ</b>ที่ตรงกันทางขวา ครบ 4 คู่ผ่านเลย 🎯')+
+    '<div class="match">'+
+      '<div>'+left.map(l=>'<div class="mtile" data-side="L" data-id="'+l.id+'">'+l.txt.replace('มวล ',l.icon+' มวล ')+'</div>').join('')+'</div>'+
+      '<div>'+right.map(r=>'<div class="mtile" data-side="R" data-id="'+r.id+'">'+r.txt+'</div>').join('')+'</div>'+
+    '</div>'+
+    '<div id="m4msg" style="min-height:20px;margin-top:10px;font-size:13px;text-align:center"></div>'+
+    hintBox('มวลยิ่งมาก จุดจบยิ่งรุนแรง: <0.08 แคระน้ำตาล · 0.08–8 แคระขาว · 8–25 ดาวนิวตรอน · >25 หลุมดำ')+
+    '<button class="btn ghost" style="margin-top:8px" onclick="renderCases4()">← กลับดูกรณี</button>');
+  document.querySelector('.match').onclick=e=>{ const t=e.target.closest('.mtile'); if(!t||t.classList.contains('done'))return;
+    if(!sel){ if(t.dataset.side!=='L'){toast('เริ่มจากแตะช่วงมวลทางซ้ายก่อนนะ');return} sel=t; t.classList.add('sel'); return; }
+    if(t===sel){ sel.classList.remove('sel'); sel=null; return; }
+    if(t.dataset.side==='L'){ sel.classList.remove('sel'); sel=t; t.classList.add('sel'); return; }
+    // t is a right tile, sel is left
+    if(t.dataset.id===sel.dataset.id){ matched[t.dataset.id]=true; t.classList.add('done'); sel.classList.add('done'); sel.classList.remove('sel'); sel=null; doneCount++;
+      const r=scoreRight(15); $('#m4msg').innerHTML='<span class="ok">✓ ถูกต้อง! +'+r.gain+(r.mult>1?' 🔥x'+r.mult:'')+'</span>';
+      if(doneCount>=4){ setTimeout(()=>completeLevel(4,HINTS,'ครบทั้ง 4 ชะตากรรม! นี่คือ <b>วงจรชีวิตของดาว</b> — เกิดจากเนบิวลา และบางส่วนกลายเป็นเนบิวลาใหม่ให้ดาวรุ่นต่อไป ✨ มวลตั้งต้นคือตัวกำหนดทุกอย่าง',null),800); } }
+    else{ scoreWrong(); t.classList.add('wrong'); const s=sel; sel.classList.remove('sel'); sel=null;
+      $('#m4msg').innerHTML='<span class="no">✗ ยังไม่ตรง — มวลมากขึ้น จุดจบยิ่งรุนแรง ลองใหม่</span>';
+      setTimeout(()=>t.classList.remove('wrong'),550); } };
+}
 
 /* ============================ LEVEL 5 — แผนภาพ H–R (อุณหภูมิ K + โชติมาตร) ============================ */
+const REGIONS5=['แถบลำดับหลัก','ดาวยักษ์','ดาวยักษ์ใหญ่','ดาวแคระขาว'];
+function regionOf5(s){ if(/DA|แคระขาว/.test(s.sp))return 'ดาวแคระขาว'; if(/Ia|Ib|\bIa\b/.test(s.sp))return 'ดาวยักษ์ใหญ่'; if(/III|\bII\b/.test(s.sp))return 'ดาวยักษ์'; return 'แถบลำดับหลัก'; }
 function level5(){
   const stars=HRSTARS;
   const Tmin=2500,Tmax=44000,magTop=-9,magBot=16.5;
@@ -743,9 +877,15 @@ function level5(){
     cvel.addEventListener('pointerdown',e=>{ if(sel){drag=true;pp=clamp(pos(cvel,e))} });
     cvel.addEventListener('pointermove',e=>{ if(drag&&sel)pp=clamp(pos(cvel,e)) });
     window.addEventListener('pointerup',()=>drag=false);
+    function activateStar(s){ sel=s; pp={x:PX(0.5),y:PY(0.5)}; sfx('click');
+      document.getElementById('prop5').innerHTML='<div><b>'+s.n+'</b> ('+s.en+')<br><span style="color:var(--dim)">สเปกตรัม</span> <b style="color:'+tempType(s.T)[2]+'">'+s.sp+'</b> · <span style="color:var(--dim)">มวล</span> <b>'+s.M+'</b> เท่าดวงอาทิตย์ · <span style="color:var(--dim)">โชติมาตรสัมบูรณ์</span> <b>'+(s.mag>0?'+':'')+s.mag+'</b> · <span style="color:var(--dim)">อุณหภูมิ</span> <b>'+s.T.toLocaleString()+' K</b><br><small style="color:var(--gold)">ลากจุดดาวบนกราฟไปวางตามค่านี้</small></div>'; }
     document.getElementById('chips5').onclick=e=>{ const b=e.target.closest('[data-en]'); if(!b)return;
-      const s=stars.find(z=>z.en===b.dataset.en); if(placed[s.en])return; sel=s; pp={x:PX(0.5),y:PY(0.5)}; sfx('click');
-      document.getElementById('prop5').innerHTML='<div><b>'+s.n+'</b> ('+s.en+')<br><span style="color:var(--dim)">สเปกตรัม</span> <b style="color:'+tempType(s.T)[2]+'">'+s.sp+'</b> · <span style="color:var(--dim)">มวล</span> <b>'+s.M+'</b> เท่าดวงอาทิตย์ · <span style="color:var(--dim)">โชติมาตรสัมบูรณ์</span> <b>'+(s.mag>0?'+':'')+s.mag+'</b> · <span style="color:var(--dim)">อุณหภูมิ</span> <b>'+s.T.toLocaleString()+' K</b><br><small style="color:var(--gold)">ลากจุดดาวบนกราฟไปวางตามค่านี้</small></div>'; };
+      const s=stars.find(z=>z.en===b.dataset.en); if(placed[s.en])return;
+      if(sel&&sel.en===s.en){ return; }  // แตะซ้ำดวงเดิม (กำลังลากอยู่) ไม่ต้องถามซ้ำ
+      const correct=regionOf5(s); const opts=shuffle(REGIONS5.map(r=>({t:r,ok:r===correct})));
+      predictGate('ดาว <b>'+s.n+'</b> (สเปกตรัม '+s.sp+' · โชติมาตร '+(s.mag>0?'+':'')+s.mag+') ควรอยู่บริเวณใดของแผนภาพ H–R?',
+        opts,'ดูโชติมาตร: ยิ่งสว่าง (ค่าน้อย/ติดลบ) ยิ่งอยู่สูง · ดาวแคระขาวจะจาง (ค่ามาก) อยู่ล่างซ้าย',
+        ()=>activateStar(s), 12); };
     loop(t=>{ x.clearRect(0,0,W,H);
       const bg=x.createLinearGradient(pad,0,pad+plotW,0);bg.addColorStop(0,'rgba(120,150,255,.16)');bg.addColorStop(.5,'rgba(255,250,210,.08)');bg.addColorStop(1,'rgba(255,110,70,.16)');
       x.fillStyle=bg;x.fillRect(pad,16,plotW,plotH);
@@ -772,7 +912,7 @@ function level5(){
     });
     window.check5=()=>{ if(!sel){toast('แตะเลือกดาวด้านล่างก่อนนะ');return}
       const tx=(pp.x-pad)/plotW, ty=(pp.y-16)/plotH; const dist=Math.hypot(tx-txf(sel.T),ty-tyf(sel.mag));
-      if(dist<0.14){ placed[sel.en]=true; sfx('good');flash('#caffe0',.3,400);toast('ถูกต้อง! '+sel.n+' ✓'); sel=null;pp=null; setTimeout(render,750); }
+      if(dist<0.14){ placed[sel.en]=true; const r=scoreRight(10);flash('#caffe0',.3,400);toast('วางถูกตำแหน่ง! '+sel.n+' +'+r.gain+(r.mult>1?' 🔥x'+r.mult:'')); sel=null;pp=null; setTimeout(render,750); }
       else{ sfx('bad'); toast('ยังไม่ตรง — เทียบอุณหภูมิ (แกนนอน) และโชติมาตร (แกนตั้ง) ของดาวนี้อีกครั้ง',2200); } };
   }
   render();
@@ -791,37 +931,47 @@ const QUIZ=[
  {q:'ดาวมวลมากกว่า 25 เท่าดวงอาทิตย์ จบชีวิตเป็น (หลังซูเปอร์โนวา)?',o:['ดาวแคระขาว','หลุมดำ','ดาวแคระน้ำตาล','ดาวเคราะห์'],a:1,e:'มวลมากเกินจนยุบเป็นหลุมดำ'},
  {q:'บนแผนภาพ H–R ดาวกลุ่มใดอยู่มากที่สุด (รวมดวงอาทิตย์)?',o:['ดาวยักษ์','ดาวแคระขาว','แถบลำดับหลัก','ซูเปอร์โนวา'],a:2,e:'ดาวราว 90% อยู่บนแถบลำดับหลัก'},
 ];
-let qi=0,qscore=0,qorder=[];
-function startQuiz(){ sfx('click'); qi=0;qscore=0; qorder=QUIZ.map((q,i)=>i); shuffle(qorder); curScreen='quiz';updProg(); renderQ(); }
+let qi=0,qscore=0,qorder=[],qpoints=0,qcombo=0,qmax=0;
+function startQuiz(){ sfx('click'); qi=0;qscore=0;qpoints=0;qcombo=0;qmax=0; qorder=QUIZ.map((q,i)=>i); shuffle(qorder); curScreen='quiz';updProg(); renderQ(); }
 function renderQ(){
   if(qi>=qorder.length){ return quizDone(); }
   const q=QUIZ[qorder[qi]]; const opts=q.o.map((t,i)=>({t,i})); shuffle(opts);
-  show('<div class="row" style="justify-content:space-between"><h2>📝 แบบทดสอบ</h2><span class="pill">ข้อ '+(qi+1)+'/'+qorder.length+'</span></div>'+
+  show('<div class="lvlhud">💯 คะแนน <span class="sc">'+qpoints+'</span>'+(qcombo>1?' · <span class="cb">🔥 คอมโบ x'+Math.min(qcombo,5)+'</span>':'')+'</div>'+
+    '<div class="row" style="justify-content:space-between"><h2>📝 แบบทดสอบ</h2><span class="pill">ข้อ '+(qi+1)+'/'+qorder.length+'</span></div>'+
     '<div class="card"><b style="font-size:16px">'+q.q+'</b>'+
     '<div id="opts" style="margin-top:10px">'+opts.map(o=>'<div class="opt" data-i="'+o.i+'">'+o.t+'</div>').join('')+'</div><div id="exp"></div></div>');
   let answered=false;
   $('#opts').onclick=e=>{ const tl=e.target.closest('.opt'); if(!tl||answered)return; answered=true;
     const pick=+tl.dataset.i, correct=q.a;
     document.querySelectorAll('.opt').forEach(o=>{ const oi=+o.dataset.i; if(oi===correct)o.classList.add('correct'); if(oi===pick&&pick!==correct)o.classList.add('wrong'); o.style.pointerEvents='none'; });
-    if(pick===correct){qscore++;sfx('good')}else sfx('bad');
+    let gained=0,mult=1;
+    if(pick===correct){ qscore++; qcombo++; if(qcombo>qmax)qmax=qcombo; mult=Math.min(qcombo,5); gained=100*mult; qpoints+=gained; sfx('good'); }
+    else { qcombo=0; sfx('bad'); }
     $('#exp').innerHTML='<div class="card" style="margin:12px 0 0;background:rgba(22,87,199,.15)">'+
-      (pick===correct?'<b class="ok">✓ ถูกต้อง!</b>':'<b class="no">✗ ยังไม่ใช่</b>')+'<p style="margin:6px 0 0;font-size:14px">'+q.e+'</p></div>'+
+      (pick===correct?'<b class="ok">✓ ถูกต้อง! +'+gained+(mult>1?' (คอมโบ x'+mult+' 🔥)':'')+'</b>':'<b class="no">✗ ยังไม่ใช่ (คอมโบขาด)</b>')+'<p style="margin:6px 0 0;font-size:14px">'+q.e+'</p></div>'+
       '<button class="btn orange" style="margin-top:12px" onclick="qi++;renderQ()">'+(qi+1<qorder.length?'ข้อต่อไป →':'ดูผลคะแนน')+'</button>';
   };
 }
-function quizDone(){ const pct=Math.round(qscore/QUIZ.length*100); S.quiz={score:qscore,total:QUIZ.length,pct}; save(); sfx('success'); summary(); }
+function quizDone(){ const pct=Math.round(qscore/QUIZ.length*100); if(qmax>1)qpoints+=qmax*50;
+  S.quiz={score:qscore,total:QUIZ.length,pct,points:qpoints,maxCombo:qmax}; save(); sfx('success'); summary(); }
 
 /* ============================ SUMMARY ============================ */
 function summary(){
   curScreen='summary'; updProg(); flash('#ffe9b0',.4,700);
   const tot=totalStars(),max=15,q=S.quiz; const cardCount=Object.keys(CARDS).filter(k=>S.cards[k]).length;
+  const lvlTot=Object.values(S.levelScores||{}).reduce((a,b)=>a+b,0);
+  const grand=lvlTot+(q&&q.points?q.points:0);
   show('<div class="center fade" style="margin-top:12px"><div class="big" style="font-size:52px">🏆</div><h1>ภารกิจสำเร็จ!</h1></div>'+
     '<div class="card center"><div style="font-size:14px;color:var(--dim)">นักสำรวจ</div>'+
     '<div style="font-size:20px;font-weight:800">'+S.name+'</div><div style="color:var(--dim);font-size:14px">'+(S.room||'')+'</div>'+
     '<hr style="border-color:var(--line);margin:14px 0">'+
+    '<div style="font-size:14px;color:var(--dim)">คะแนนรวมทั้งเกม</div>'+
+    '<div class="scorebox" style="font-size:44px">'+grand+' <span style="font-size:18px">คะแนน</span></div>'+
+    '<div style="font-size:12px;color:var(--dim);margin-top:2px">(ด่าน '+lvlTot+' + แบบทดสอบ '+(q&&q.points?q.points:0)+')</div>'+
+    '<hr style="border-color:var(--line);margin:14px 0">'+
     '<div style="font-size:14px;color:var(--dim)">ดาวสะสมจากด่าน</div>'+
-    '<div class="scorebox" style="font-size:38px">'+tot+' <span style="font-size:20px">/ '+max+' ★</span></div>'+
-    (q?'<div style="font-size:14px;color:var(--dim);margin-top:10px">คะแนนแบบทดสอบ</div><div class="scorebox">'+q.score+'<span style="font-size:22px">/'+q.total+'</span></div><div class="pill" style="margin-top:6px">'+q.pct+'%</div>':'')+
+    '<div class="scorebox" style="font-size:34px">'+tot+' <span style="font-size:20px">/ '+max+' ★</span></div>'+
+    (q?'<div style="font-size:14px;color:var(--dim);margin-top:10px">แบบทดสอบท้ายเกม</div><div class="scorebox" style="font-size:34px">'+q.score+'<span style="font-size:22px">/'+q.total+'</span></div><div class="pill" style="margin-top:6px">'+q.pct+'%'+(q.maxCombo>1?' · 🔥 คอมโบสูงสุด x'+Math.min(q.maxCombo,5):'')+'</div>':'')+
     '<div class="pill" style="margin-top:12px">📒 การ์ดสะสม '+cardCount+'/'+Object.keys(CARDS).length+' ใบ</div>'+
     '<div class="row" style="justify-content:center;gap:6px;margin-top:12px">'+LV.map(l=>'<div class="pill" style="font-size:12px">'+l.icon+' '+(done(l.id)?starStr(S.stars[l.id]):'—')+'</div>').join('')+'</div></div>'+
     nova('เยี่ยมมาก '+S.name+'! เธอเดินทางครบวงจรชีวิตของดาวแล้ว 🌟 <b>แคปหน้าจอนี้ส่งให้คุณครู</b> เป็นหลักฐานการเรียนรู้นะ')+
