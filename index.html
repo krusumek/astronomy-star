@@ -153,7 +153,14 @@
 
 <script>
 /* ============================ ASSETS ============================ */
-const MUSIC_URL='https://commons.wikimedia.org/wiki/Special:FilePath/'+encodeURIComponent('Kevin MacLeod - Living Voyage.ogg'); /* Kevin MacLeod, CC BY — via Wikimedia */
+/* เพลงประกอบ 3 เพลง — ทั้งหมดของ Kevin MacLeod (incompetech.com) ผ่าน Wikimedia Commons, CC BY 3.0 */
+const MUSIC_TRACKS=[
+  {key:'odyssey',name:'Odyssey',file:'Odyssey (ISRC USUAN1500012).mp3',desc:'สดใส ลึกลับ กว้างไกล'},
+  {key:'xplorers',name:'Space X-plorers',file:'Space X-plorers (ISRC USUAN1100064).mp3',desc:'ตื่นเต้น ผจญภัย'},
+  {key:'frozenstar',name:'Frozen Star',file:'Frozen Star (ISRC USUAN1100356).mp3',desc:'ผ่อนคลาย ฝันๆ'},
+];
+function musicUrl(file){ return 'https://commons.wikimedia.org/wiki/Special:FilePath/'+encodeURIComponent(file) }
+function curTrack(){ return MUSIC_TRACKS.find(t=>t.key===S.musicTrack)||MUSIC_TRACKS[0] }
 function wiki(name,w){ return 'https://commons.wikimedia.org/wiki/Special:FilePath/'+encodeURIComponent(name)+'?width='+(w||900) }
 const IMG = {
   galaxy: wiki('Milky Way Arch.jpg',1200),
@@ -171,6 +178,7 @@ const IMG = {
   protostarCard: wiki('Protostar Herbig-Haro 46 47.jpg',700),      /* จานพอกพูน + เจ็ตของโปรโตสตาร์ (NASA/Spitzer) */
   mainseqCard: wiki('NGC 346 (Hubble) (weic2301c).jpeg',900),      /* กระจุกดาวแถบลำดับหลักสีน้ำเงินอายุน้อย (Hubble) */
   neutronstarCard: wiki('Neutron star illustrated.jpg',700),        /* ภาพจำลองดาวนิวตรอน (NASA) */
+  orion: wiki('Orion Head to Toe.jpg',900),           /* กลุ่มดาวนายพราน มีทั้งไรเจล(น้ำเงิน)และบีเทลจุส(แดง) */
 };
 const imgCache={};
 function loadImg(url){
@@ -190,7 +198,8 @@ const LV = [
   {id:2,icon:'🔥',name:'จุดติดดาว',desc:'ฟิวชัน + สมดุลของแรง'},
   {id:3,icon:'⭐',name:'สีและอุณหภูมิของดาว',desc:'สี ↔ อุณหภูมิ + ดาวจริง'},
   {id:4,icon:'💀',name:'จุดจบของดาว',desc:'4 ชะตากรรมตามมวล'},
-  {id:5,icon:'📊',name:'แผนภาพ H–R',desc:'ด่านเสริม · รวมความรู้'},
+  {id:5,icon:'📏',name:'โชติมาตรของดาว',desc:'ปรากฏ ↔ สัมบูรณ์'},
+  {id:6,icon:'📊',name:'แผนภาพ H–R',desc:'ด่านเสริม · รวมความรู้'},
 ];
 const CARDS={
   protostar:{em:'🌟',t:'โปรโตสตาร์',img:IMG.protostarCard,fact:'ดาวฤกษ์ก่อนเกิด มีจานพอกพูนแก๊ส-ฝุ่นและพ่นลำเจ็ตออกสองขั้ว (ภาพ: โปรโตสตาร์ Herbig-Haro 46/47 ถ่ายโดย Spitzer) เกิดจากแก๊สยุบตัวด้วยแรงโน้มถ่วง'},
@@ -201,6 +210,7 @@ const CARDS={
   ns:{em:'🔵',t:'ดาวนิวตรอน',img:IMG.neutronstarCard,fact:'แกนยุบหลังซูเปอร์โนวาของดาว 8–25 เท่า อัดแน่นเป็นทรงกลมขนาดเท่าเมือง หมุนรอบตัวเองเร็วมาก (ภาพ: จำลองดาวนิวตรอน โดย NASA)'},
   bh:{em:'⚫',t:'หลุมดำ',img:IMG.blackhole,fact:'จุดจบของดาว > 25 เท่า (ภาพ: หลุมดำ M87* ถ่ายโดย Event Horizon Telescope)'},
   hr:{em:'📊',t:'แผนภาพ H–R',img:IMG.hrdiagram,fact:'แผนภาพจัดกลุ่มดาวตามอุณหภูมิพื้นผิว (K) และโชติมาตรสัมบูรณ์'},
+  appabs:{em:'📏',t:'โชติมาตร ปรากฏ vs สัมบูรณ์',img:IMG.orion,fact:'โชติมาตรปรากฏ (m) ขึ้นกับระยะทางด้วย ส่วนโชติมาตรสัมบูรณ์ (M) คือความสว่างจริงที่ระยะมาตรฐาน 10 พาร์เซก (ภาพ: กลุ่มดาวนายพราน — ไรเจลสีน้ำเงินกับบีเทลจุสสีแดงที่ความสว่างจริงต่างจากที่ตาเห็นมาก)'},
 };
 /* ดาวฤกษ์จริง (ข้อมูลโดยประมาณ) สำหรับด่าน 3 และ 5 */
 const REALSTARS=[
@@ -222,21 +232,27 @@ const HRSTARS=[
   {n:'พรอกซิมา',en:'Proxima Cen',sp:'M5.5 V',T:3040,M:0.12,mag:15.5},
   {n:'ซิริอุส บี',en:'Sirius B',sp:'DA (แคระขาว)',T:25000,M:1.0,mag:11.3},
 ];
-const KEY='spacequest_stars_v2';
+/* ชุดดาวสำหรับด่านโชติมาตร — mag คือโชติมาตรสัมบูรณ์ (M), dist คือระยะจริง (พาร์เซก) */
+const MAGSTARS=[
+  {n:'ดวงอาทิตย์',en:'Sun',sp:'G2V',T:5778,mag:4.83,dist:0.0000048},
+  {n:'ซิริอุส เอ',en:'Sirius A',sp:'A1V',T:9940,mag:1.45,dist:2.64},
+  {n:'ไรเจล',en:'Rigel',sp:'B8',T:12100,mag:-7.0,dist:264},
+];
+const KEY='spacequest_stars_v3'; /* v2→v3: แทรกด่านโชติมาตรเป็น id5, H–R เลื่อนเป็น id6 — เลข id เดิมความหมายเปลี่ยน ต้องขึ้น key ใหม่กันข้อมูลเก่าชนกัน */
 let S = load();
 function load(){ try{return Object.assign(blank(),JSON.parse(localStorage.getItem(KEY))||{})}catch(e){return blank()} }
-function blank(){ return {name:'',room:'',stars:{},quiz:null,cards:{},levelScores:{}} }
+function blank(){ return {name:'',room:'',stars:{},quiz:null,cards:{},levelScores:{},musicTrack:'odyssey'} }
 function save(){ localStorage.setItem(KEY, JSON.stringify(S)) }
 function totalStars(){ return Object.values(S.stars).reduce((a,b)=>a+b,0) }
 function done(id){ return S.stars[id]!==undefined }
-function unlocked(id){ if(id===1)return true; if(id===5)return done(1)&&done(2)&&done(3)&&done(4); return done(id-1) }
+function unlocked(id){ if(id===1)return true; if(id===6)return done(1)&&done(2)&&done(3)&&done(4)&&done(5); return done(id-1) }
 function unlockCard(k){ if(!S.cards[k]){S.cards[k]=true;save();return true} return false }
 
 /* ============================ AUDIO ============================ */
 let AC, master, soundOn=true;
 const Music={ el:null, synth:null, on:true, level:0.42,
   begin(){ if(this.el)return this.resume();
-    const a=new Audio(); a.loop=true; a.preload='auto'; a.volume=0; a.src=MUSIC_URL; this.el=a;
+    const a=new Audio(); a.loop=true; a.preload='auto'; a.volume=0; a.src=musicUrl(curTrack().file); this.el=a;
     let ok=false;
     a.addEventListener('playing',()=>{ ok=true; this.fade(this.on?this.level:0); });
     a.addEventListener('error',()=>{ if(!ok)this.useSynth() });
@@ -251,7 +267,11 @@ const Music={ el:null, synth:null, on:true, level:0.42,
     if(this.synth)this.synth.gain.gain.value=this.on?0.16:0;
     document.getElementById('musicBtn').classList.toggle('off',!this.on);
   },
-  useSynth(){ if(this.synth)return; ensureAC(); this.synth=makeSynthMusic(); this.synth.gain.gain.value=this.on?0.16:0; }
+  useSynth(){ if(this.synth)return; ensureAC(); this.synth=makeSynthMusic(); this.synth.gain.gain.value=this.on?0.16:0; },
+  setTrack(key){ S.musicTrack=key; save(); if(!this.el)return; /* ถ้ากำลังเล่นอยู่แล้ว สลับเพลงสด */
+    const wasOn=this.on; this.fade(0);
+    setTimeout(()=>{ this.el.src=musicUrl(curTrack().file); if(wasOn)this.el.play().catch(()=>{}); this.fade(wasOn?this.level:0); },650);
+  }
 };
 function ensureAC(){ if(AC)return; AC=new (window.AudioContext||window.webkitAudioContext)();
   master=AC.createGain(); master.gain.value=1; master.connect(AC.destination); }
@@ -336,7 +356,7 @@ const $=s=>document.querySelector(s), scr=()=>document.getElementById('screen');
 function show(html){ ++RAFGEN; const e=scr(); e.style.transform=''; e.innerHTML=html; e.classList.remove('fade'); void e.offsetWidth; e.classList.add('fade'); e.scrollTop=0; }
 function nova(msg){ return '<div id="nova"><div class="ava">🛰️</div><div><div class="msg"><span class="who">น้องโนวา</span>'+msg+'</div></div></div>' }
 function toast(t,ms){ const e=$('#toast'); e.innerHTML=t; e.classList.add('show'); clearTimeout(e._t); e._t=setTimeout(()=>e.classList.remove('show'),ms||1500) }
-function updProg(){ let c=0;[1,2,3,4].forEach(i=>{if(done(i))c++}); $('#progbar').style.width=(c/4*100)+'%';
+function updProg(){ let c=0;[1,2,3,4,5].forEach(i=>{if(done(i))c++}); $('#progbar').style.width=(c/5*100)+'%';
   $('#homeBtn').style.display = curScreen==='start'?'none':'grid'; }
 function starStr(n){ return '★★★'.slice(0,n)+'☆☆☆'.slice(0,3-n) }
 let curScreen='start';
@@ -358,9 +378,9 @@ function updHUD(){ const s=document.getElementById('hudScore'); if(s)s.textConte
   const c=document.getElementById('hudCombo'); if(c)c.innerHTML=COMBO>1?'🔥 คอมโบ x'+Math.min(COMBO,5):''; if(c&&COMBO>1)c.className='cb'; }
 function saveLevelScore(id){ if(!S.levelScores)S.levelScores={}; if(!(id in S.levelScores)||LVLSCORE>S.levelScores[id]){S.levelScores[id]=LVLSCORE} save(); }
 /* ทายก่อนดู — overlay ใช้ซ้ำทุกด่าน · opt:[{t,ok}] · เรียก onPass เมื่อตอบถูก */
-function predictGate(q, options, explain, onPass, base){
+function predictGate(q, options, explain, onPass, base, title){
   const ov=document.createElement('div'); ov.className='predictov';
-  ov.innerHTML='<div class="predictcard"><div class="ptitle">🔮 ทายก่อน! (ตอบถูกได้คะแนน+คอมโบ)</div>'+
+  ov.innerHTML='<div class="predictcard"><div class="ptitle">'+(title||'🔮 ทายก่อน! (ตอบถูกได้คะแนน+คอมโบ)')+'</div>'+
     '<div class="pq">'+q+'</div><div class="popts" style="margin-top:10px">'+
     options.map((o,i)=>'<button class="popt" data-i="'+i+'">'+o.t+'</button>').join('')+
     '</div><div class="pexp"></div></div>';
@@ -389,9 +409,16 @@ function startScreen(){
     '<input type="text" id="inRoom" placeholder="เช่น ม.4/1 เลขที่ 12" value="'+(S.room||'')+'">'+
     '<button class="btn orange" style="margin-top:16px" onclick="goMap()">เริ่มออกเดินทาง 🚀</button>'+
     (totalStars()>0?'<button class="btn ghost" style="margin-top:8px" onclick="resetGame()">เริ่มใหม่ทั้งหมด</button>':'')+'</div>'+
-    '<p class="center" style="font-size:12px;color:var(--dim)">🎵 มีเพลงอวกาศ + เสียงเอฟเฟกต์ (เปิดอยู่) ปรับได้ที่ปุ่มมุมขวาบน</p>'+
-    '<div class="credit">เพลง: “Living Voyage” by Kevin MacLeod (incompetech.com) — CC BY 4.0<br>ภาพ: NASA/ESA · EHT Collaboration (M87*, CC BY 4.0) ผ่าน Wikimedia Commons</div>');
+    '<p style="font-size:13px;color:var(--dim);margin:14px 0 4px">🎵 เลือกเพลงประกอบที่ชอบ</p>'+
+    '<div style="display:flex;flex-direction:column;gap:6px">'+MUSIC_TRACKS.map(t=>{ const sel=(S.musicTrack||'odyssey')===t.key;
+      return '<div class="pill" style="cursor:pointer;padding:10px 14px;'+(sel?'border-color:var(--gold);background:rgba(255,210,63,.16)':'')+'" onclick="selectMusic(\''+t.key+'\')">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center">'+
+        '<div><b>'+(sel?'🔊 ':'')+t.name+'</b><br><small style="color:var(--dim)">'+t.desc+'</small></div>'+
+        (sel?'<span style="color:var(--gold)">✓</span>':'')+'</div></div>'; }).join('')+'</div>'+
+    '<p class="center" style="font-size:12px;color:var(--dim);margin-top:10px">🎵 มีเสียงเอฟเฟกต์ (เปิดอยู่) ปรับเพลง/เสียงได้ที่ปุ่มมุมขวาบน</p>'+
+    '<div class="credit">เพลง: "'+curTrack().name+'" by Kevin MacLeod (incompetech.com) — CC BY 3.0<br>ภาพ: NASA/ESA · EHT Collaboration (M87*, CC BY 4.0) ผ่าน Wikimedia Commons</div>');
 }
+function selectMusic(key){ sfx('click'); Music.setTrack(key); startScreen(); }
 function goMap(){
   const n=$('#inName').value.trim(), r=$('#inRoom').value.trim();
   if(!n){ toast('กรอกชื่อก่อนนะ 😊'); return }
@@ -408,19 +435,19 @@ function mapScreen(){
     const lk=!unlocked(l.id), dn=done(l.id);
     return '<div class="node '+(lk?'locked':'')+' '+(l.bonus?'bonus':'')+'" '+(lk?'':'onclick="openLevel('+l.id+')"')+'>'+
       '<div class="num">'+(lk?'🔒':l.icon)+'</div>'+
-      '<div class="info"><b>ด่าน '+l.id+' · '+l.name+(l.id===5?' <span class="tag">เสริม</span>':'')+'</b><p>'+l.desc+'</p>'+
+      '<div class="info"><b>ด่าน '+l.id+' · '+l.name+(l.id===6?' <span class="tag">เสริม</span>':'')+'</b><p>'+l.desc+'</p>'+
       (dn?'<div class="stars">'+starStr(S.stars[l.id])+'</div>':'')+'</div>'+
       (dn?'<div class="chk">✓</div>':'')+'</div>';
   }).join('');
   const cardCount=Object.keys(CARDS).filter(k=>S.cards[k]).length;
-  const allReq = done(1)&&done(2)&&done(3)&&done(4);
+  const allReq = done(1)&&done(2)&&done(3)&&done(4)&&done(5);
   show('<h2>🗺️ แผนที่การเดินทาง</h2>'+
     '<p style="color:var(--dim);margin-top:0;font-size:13px">นักสำรวจ <b>'+S.name+'</b> '+(S.room?'· '+S.room:'')+' · <b style="color:var(--gold)">'+totalStars()+' ★</b></p>'+
     '<div class="node" onclick="codexScreen()" style="border-color:var(--gold)"><div class="num" style="background:linear-gradient(135deg,#9a7b00,var(--gold))">📒</div>'+
       '<div class="info"><b>สมุดสะสมดาว</b><p>เก็บการ์ดได้ '+cardCount+'/'+Object.keys(CARDS).length+' ใบ</p></div></div>'+
     nodes+
     (allReq?'<button class="btn orange" onclick="startQuiz()">📝 ทำแบบทดสอบท้ายเกม</button>':
-      '<div class="card center" style="font-size:13px;color:var(--dim)">ผ่านด่าน 1–4 เพื่อปลดล็อกแบบทดสอบท้ายเกม</div>'));
+      '<div class="card center" style="font-size:13px;color:var(--dim)">ผ่านด่าน 1–5 เพื่อปลดล็อกแบบทดสอบท้ายเกม</div>'));
 }
 function codexScreen(){
   curScreen='codex'; sfx('click'); updProg();
@@ -439,7 +466,7 @@ document.getElementById('musicBtn').onclick=()=>{ ensureAC(); if(AC.state==='sus
 document.getElementById('sfxBtn').onclick=()=>{ soundOn=!soundOn; document.getElementById('sfxBtn').classList.toggle('off',!soundOn); document.getElementById('sfxBtn').textContent=soundOn?'🔊':'🔈'; if(soundOn)sfx('click') };
 
 /* ============================ LEVEL ROUTER & COMPLETE ============================ */
-function openLevel(id){ sfx('click'); HINTS=0; resetScore(); ({1:level1,2:level2,3:level3,4:level4,5:level5})[id]() }
+function openLevel(id){ sfx('click'); HINTS=0; resetScore(); ({1:level1,2:level2,3:level3,4:level4,5:level5mag,6:level6hr})[id]() }
 function levelHeader(id,sub){ const l=LV.find(x=>x.id===id);
   return hudBar()+'<h2>'+l.icon+' ด่าน '+id+' · '+l.name+'</h2><p style="color:var(--dim);margin-top:-6px;font-size:13px">'+sub+'</p>' }
 function completeLevel(id,hints,msg,cardKey){
@@ -462,13 +489,18 @@ function completeLevel(id,hints,msg,cardKey){
     '<button class="btn orange" onclick="afterLevel('+id+')">ไปต่อ →</button>'+
     '<button class="btn ghost" style="margin-top:8px" onclick="mapScreen()">กลับแผนที่</button>');
 }
-function afterLevel(id){ sfx('click'); const nxt=id+1; if(id<4 && unlocked(nxt)){ openLevel(nxt) } else mapScreen() }
+function afterLevel(id){ sfx('click'); const nxt=id+1; if(id<5 && unlocked(nxt)){ openLevel(nxt) } else mapScreen() }
 
 /* ============================ PHYSICS ============================ */
 function massToTemp(m){ return Math.max(2400, Math.min(45000, 5778*Math.pow(m,0.505))) }
 function massToLife(m){ return 10*Math.pow(m,-2.5) }
 function massToLum(m){ return Math.pow(m,3.5) }
 function lumToAbsMag(L){ return 4.83-2.5*Math.log10(L) }
+function apparentMag(M,dpc){ return M+5*Math.log10(dpc)-5 } /* dpc: ระยะทางเป็นพาร์เซก · ที่ 10pc จะได้ apparent=absolute พอดี */
+function fmtDist(pc){ const ly=pc*3.2616;
+  if(pc<0.0005){ const minutes=ly*525600; return Math.round(minutes)+' นาทีแสง'; } /* ระยะสั้นมาก (เช่น ดวงอาทิตย์) — ปีแสงปัดเหลือ 0 ไม่ได้ความ */
+  if(pc<0.001)return ly.toFixed(2)+' ปีแสง'; if(pc<1)return pc.toFixed(4)+' พาร์เซก ('+ly.toFixed(2)+' ปีแสง)';
+  return (pc>=10?Math.round(pc):pc.toFixed(1))+' พาร์เซก ('+(ly>=10?Math.round(ly):ly.toFixed(1))+' ปีแสง)'; }
 function tempType(T){ if(T>=30000)return['O','น้ำเงิน','#9bb0ff'];if(T>=10000)return['B','น้ำเงิน-ขาว','#bcd0ff'];
   if(T>=7500)return['A','ขาว','#e6ecff'];if(T>=6000)return['F','ขาว-เหลือง','#fbfbe6'];
   if(T>=5200)return['G','เหลือง','#ffe46b'];if(T>=3700)return['K','ส้ม','#ffbf6b'];return['M','แดง','#ff7a55'] }
@@ -549,12 +581,7 @@ function phase2a(){
 }
 function phase2b(){
   sfx('click');
-  /* ทายก่อน แล้วค่อยลงมือลากทำฟิวชันเอง */
-  predictGate(
-    'พอแกนร้อนพอ <b>ฟิวชัน</b>ก็เริ่ม! เมื่อ<b>ไฮโดรเจน (H) 4 นิวเคลียส</b>หลอมรวมกัน จะได้ธาตุใด + พลังงาน?',
-    [{t:'⚪ He ฮีเลียม',ok:true},{t:'⚫ C คาร์บอน'},{t:'💧 H₂O น้ำ'},{t:'🔵 O ออกซิเจน'}],
-    'ในแถบลำดับหลัก H 4 ตัวหลอมรวมเป็น <b>ฮีเลียม (He)</b> พร้อมปล่อยพลังงานมหาศาล',
-    ()=>phase2bPlay(), 15);
+  phase2bPlay();
 }
 function phase2bPlay(){
   flash('#fff',.5,420); shake(260,6); vib(40);
@@ -585,7 +612,11 @@ function phase2bPlay(){
         if(count>=4&&!banged){ banged=true; sfx('ignite'); flash('#fff7d6',.85,520); shake(320,9); vib(60);
           mkBurst(parts,cx,cy,50,{col:'255,230,160',spd:5,size:3,decay:.01}); scoreRight(20);
           toast('💥 หลอมรวมเป็นฮีเลียมสำเร็จ! +พลังงาน');
-          setTimeout(()=>{ const nb=$('#next2b'); if(nb)nb.disabled=false; },500); }
+          setTimeout(()=>predictGate(
+            'เมื่อกี้เธอเพิ่งรวม<b>ไฮโดรเจน (H) 4 นิวเคลียส</b>เข้าด้วยกัน — ผลลัพธ์ที่ได้คือธาตุใด + พลังงาน?',
+            [{t:'⚪ He ฮีเลียม',ok:true},{t:'⚫ C คาร์บอน'},{t:'💧 H₂O น้ำ'},{t:'🔵 O ออกซิเจน'}],
+            'ในแถบลำดับหลัก H 4 ตัวหลอมรวมเป็น <b>ฮีเลียม (He)</b> พร้อมปล่อยพลังงานมหาศาล',
+            ()=>{ const nb=$('#next2b'); if(nb)nb.disabled=false; }, 15),500); }
         return; }
       x.save();x.globalCompositeOperation='lighter'; let g=x.createRadialGradient(h.x,h.y,0,h.x,h.y,16);g.addColorStop(0,'#cfe0ff');g.addColorStop(1,'rgba(80,120,255,0)');x.fillStyle=g;x.beginPath();x.arc(h.x,h.y,16,0,7);x.fill();x.restore();
       x.fillStyle='#bcd0ff';x.beginPath();x.arc(h.x,h.y,11,0,7);x.fill(); x.fillStyle='#06143a';x.font='bold 11px sans-serif';x.textAlign='center';x.fillText('H',h.x,h.y+3);
@@ -632,7 +663,12 @@ function phase2c(){
       x.save();x.globalCompositeOperation='lighter';x.strokeStyle='rgba(57,217,138,.85)';x.lineWidth=4;
       x.beginPath();x.arc(cx,cy,r+gLen+16,-Math.PI/2,-Math.PI/2+7*Math.min(1,inTime/8));x.stroke();x.restore(); }
     if(inTime>=8&&!win){ win=true; sfx('success');flash('#caffe0',.5,600);
-      setTimeout(()=>completeLevel(2,HINTS,'ดาวเข้าสู่ <b>สมดุลอุทกสถิต</b> แล้ว! แรงโน้มถ่วงกับความดันฟิวชันหักล้างกันพอดี ดาวจะส่องแสงนิ่ง ๆ ในช่วง <b>แถบลำดับหลัก</b> ไปอีกหลายพันล้านปี','mainseq'),500); return false; }
+      setTimeout(()=>predictGate(
+        'ก่อนจบด่าน — <b>แรงใดบ้าง</b>ที่มีผลทำให้ดาวฤกษ์อยู่ใน <b>สมดุลอุทกสถิต</b>?',
+        [{t:'แรงโน้มถ่วง (ดึงเข้า) กับ ความดันฟิวชัน (ดันออก)',ok:true},{t:'แรงแม่เหล็ก กับ แรงเสียดทาน'},{t:'แรงตึงผิว กับ แรงลอยตัว'},{t:'แรงสู่ศูนย์กลาง กับ แรงแม่เหล็กไฟฟ้า'}],
+        'สมดุลอุทกสถิตเกิดจาก <b>แรงโน้มถ่วง</b>ที่ดึงเข้า หักล้างพอดีกับ <b>ความดันฟิวชัน</b>ที่ดันออกจากปฏิกิริยานิวเคลียร์ในแกน',
+        ()=>completeLevel(2,HINTS,'ดาวเข้าสู่ <b>สมดุลอุทกสถิต</b> แล้ว! แรงโน้มถ่วงกับความดันฟิวชันหักล้างกันพอดี ดาวจะส่องแสงนิ่ง ๆ ในช่วง <b>แถบลำดับหลัก</b> ไปอีกหลายพันล้านปี','mainseq'),
+        15),500); return false; }
   });
 }
 
@@ -640,12 +676,15 @@ function phase2c(){
 function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]} return a }
 function starDot(col,size){ return '<span style="display:inline-block;width:'+size+'px;height:'+size+'px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff,'+col+' 72%);box-shadow:0 0 '+(size/2)+'px '+col+'"></span>' }
 function level3(){
-  /* เดาก่อนสำรวจ (predict-observe) แล้วค่อยเลื่อนสไลเดอร์พิสูจน์ */
+  level3explore();
+}
+function level3gate(){
+  sfx('click');
   predictGate(
-    'เดาก่อนสำรวจ! ระหว่าง<b>ดาวสีน้ำเงิน</b> กับ <b>ดาวสีแดง</b> ดวงไหน<b>ร้อนกว่า</b>?',
+    'ทายดูก่อน! ระหว่าง<b>ดาวสีน้ำเงิน</b> กับ <b>ดาวสีแดง</b> ดวงไหน<b>ร้อนกว่า</b>?',
     [{t:'🔵 ดาวสีน้ำเงินร้อนกว่า',ok:true},{t:'🔴 ดาวสีแดงร้อนกว่า'},{t:'⚖️ ร้อนเท่ากัน'}],
-    'ลองเลื่อนสไลเดอร์ในด่านนี้พิสูจน์ดูสิ — สีน้ำเงิน = ร้อนที่สุด, สีแดง = เย็นที่สุด',
-    ()=>level3explore(), 10);
+    'จากที่เพิ่งเลื่อนสไลเดอร์ดู — สีน้ำเงิน = ร้อนที่สุด, สีแดง = เย็นที่สุด',
+    ()=>level3test(), 10);
 }
 function level3explore(){
   const stars=REALSTARS.slice().sort((a,b)=>b.T-a.T);
@@ -661,7 +700,7 @@ function level3explore(){
     '<div class="row" style="gap:6px;align-items:stretch">'+stars.map(s=>{const col=tempType(s.T)[2];
       return '<div class="pill" style="display:flex;flex-direction:column;align-items:center;gap:5px;flex:1;min-width:84px;padding:10px 4px">'+starDot(col,28)+
         '<b style="font-size:12px">'+s.n+'</b><small style="color:var(--dim);font-size:10px;text-align:center">'+s.sp+'<br>'+s.T.toLocaleString()+' K</small></div>'}).join('')+'</div>'+
-    '<button class="btn orange" style="margin-top:14px" onclick="level3test()">พร้อมทดสอบความเข้าใจ →</button>'+
+    '<button class="btn orange" style="margin-top:14px" onclick="level3gate()">พร้อมทดสอบความเข้าใจ →</button>'+
     '<button class="btn ghost" style="margin-top:8px" onclick="mapScreen()">← กลับ</button>');
   const {x,W,H}=cv('cv3',0.5); const sl=$('#temp3'); const cx=W/2,cy=H/2;
   loop(t=>{ const T=+sl.value; const tt=tempType(T),col=tt[2];
@@ -705,7 +744,9 @@ function level3test(){
 const CASES=[
   {key:'bd',label:'ดาวแคระน้ำตาล',icon:'🟤',mass:'< 0.08 เท่า',stages:[
     {t:'เนบิวลายุบตัว',img:'nebula',col:'#9cc0ff',rf:.16,d:'แก๊สในเนบิวลายุบตัวด้วยแรงโน้มถ่วง เริ่มก่อตัวเป็นดาว'},
-    {t:'มวลไม่พอจุดฟิวชัน',img:null,col:'#a9743f',rf:.12,d:'มวลน้อยกว่า 0.08 เท่าดวงอาทิตย์ แกนกลางร้อนไม่ถึงเกณฑ์จุดฟิวชันไฮโดรเจน'},
+    {t:'มวลไม่พอจุดฟิวชัน',img:null,col:'#a9743f',rf:.12,d:'มวลน้อยกว่า 0.08 เท่าดวงอาทิตย์ แกนกลางร้อนไม่ถึงเกณฑ์จุดฟิวชันไฮโดรเจน',
+      pq:'หากมวลตั้งต้น<b>น้อยกว่า 0.08 เท่า</b>ของดวงอาทิตย์ จะเกิดอะไรขึ้น?',
+      po:[{t:'ดาวแคระน้ำตาล',ok:true},{t:'ดาวแคระขาว'},{t:'ดาวนิวตรอน'},{t:'หลุมดำ'}]},
     {t:'ดาวแคระน้ำตาล',img:'browndwarf',col:'#a9743f',rf:.15,d:'กลายเป็นดาวแคระน้ำตาล "ดาวที่ล้มเหลว" เรืองแสงสลัว ไม่เกิดฟิวชันไฮโดรเจน'},
   ]},
   {key:'wd',label:'ดาวแคระขาว',icon:'⚪',mass:'0.08 – 8 เท่า',stages:[
@@ -757,7 +798,7 @@ function pickCase4(key){ sfx('click'); const c=CASES.find(x=>x.key===key); let i
       '<div class="row" style="gap:8px;margin-top:8px">'+
         '<button class="btn ghost" style="flex:1" '+(idx===0?'disabled':'')+' onclick="_st4('+(idx-1)+')">◀ ก่อนหน้า</button>'+
         (last?'<button class="btn orange" style="flex:1" onclick="_done4()">เก็บการ์ด ✓</button>'
-             :'<button class="btn orange" style="flex:1" onclick="_next4()">ทายขั้นถัดไป ▶</button>')+'</div>'+
+             :'<button class="btn orange" style="flex:1" onclick="_next4()">ตอบคำถามเพื่อไปต่อ ▶</button>')+'</div>'+
       '<button class="btn ghost" style="margin-top:8px" onclick="renderCases4()">← เลือกกรณีอื่น</button>');
     const {x,W,H}=cv('cv4',0.66); const cx=W/2,cy=H/2;
     loop(t=>{ x.clearRect(0,0,W,H); const im=st.img?getImg(IMG[st.img]):null;
@@ -769,13 +810,20 @@ function pickCase4(key){ sfx('click'); const c=CASES.find(x=>x.key===key); let i
       else drawStar(x,cx,cy,Math.min(W,H)*st.rf,st.col,t);
     });
     window._st4=i=>{ sfx('click'); idx=i; render(); };
+    /* ตอบคำถามทดสอบความเข้าใจจากสไลด์ที่เพิ่งดู → ตอบถูกจึงจะไปสไลด์ถัดไปได้ */
     window._next4=()=>{ const clean=s=>s.replace(/\s*\(.*\)/,'');
-      const cur=clean(c.stages[idx].t), correct=clean(c.stages[idx+1].t);
-      const pool=[...new Set([].concat(...CASES.map(cc=>cc.stages.map(s=>clean(s.t)))))];
-      const distract=shuffle(pool.filter(t=>t!==correct&&t!==cur)).slice(0,2);
-      const opts=shuffle([{t:correct,ok:true},...distract.map(t=>({t}))]);
-      predictGate('หลังจาก "<b>'+cur+'</b>" ดาวดวงนี้จะกลายเป็นอะไรต่อ?',
-        opts,'ดูแถบลำดับด้านบนประกอบ แล้วลองใหม่ดูนะ',()=>_st4(idx+1),12);
+      const st=c.stages[idx];
+      let q,opts;
+      if(st.pq){ q=st.pq; opts=st.po; }
+      else{
+        const cur=clean(st.t), correct=clean(c.stages[idx+1].t);
+        const pool=[...new Set([].concat(...CASES.map(cc=>cc.stages.map(s=>clean(s.t)))))];
+        const distract=shuffle(pool.filter(t=>t!==correct&&t!==cur)).slice(0,2);
+        opts=shuffle([{t:correct,ok:true},...distract.map(t=>({t}))]);
+        q='จากสไลด์ "<b>'+cur+'</b>" ที่เพิ่งดู — ดาวจะพัฒนาต่อไปเป็นอะไร?';
+      }
+      predictGate(q,opts,'ย้อนอ่านคำอธิบายในสไลด์ + ดูแถบลำดับด้านบนประกอบ แล้วลองใหม่นะ',
+        ()=>_st4(idx+1),12,'🧠 ทดสอบความเข้าใจ (ตอบถูกจึงไปสไลด์ต่อไปได้)');
     };
     window._done4=()=>{ unlockCard(c.key); sfx('card');
       const fate=['bd','wd','ns','bh'].filter(k=>S.cards[k]).length;
@@ -814,10 +862,141 @@ function gate4match(){
       setTimeout(()=>t.classList.remove('wrong'),550); } };
 }
 
-/* ============================ LEVEL 5 — แผนภาพ H–R (อุณหภูมิ K + โชติมาตร) ============================ */
-const REGIONS5=['แถบลำดับหลัก','ดาวยักษ์','ดาวยักษ์ใหญ่','ดาวแคระขาว'];
-function regionOf5(s){ if(/DA|แคระขาว/.test(s.sp))return 'ดาวแคระขาว'; if(/Ia|Ib|\bIa\b/.test(s.sp))return 'ดาวยักษ์ใหญ่'; if(/III|\bII\b/.test(s.sp))return 'ดาวยักษ์'; return 'แถบลำดับหลัก'; }
-function level5(){
+/* ============================ LEVEL 5 — โชติมาตร (ปรากฏ vs สัมบูรณ์) ============================ */
+function level5mag(){ phase5a() }
+
+function phase5a(){
+  const M=4.83; /* โชติมาตรสัมบูรณ์คงที่ — ดาวจำลองความสว่างจริงเท่าดวงอาทิตย์ */
+  show(levelHeader(5,'เฟส 1/2 · เลื่อน "ระยะทาง" ดูสิ')+
+    nova('ดาวดวงนี้มี<b>ความสว่างจริงคงที่เสมอ</b> แต่เมื่อ<b>ระยะทางจากโลกเปลี่ยน</b> ความสว่างที่เรา"มองเห็น"จะเปลี่ยนไปด้วย! ลองเลื่อนสไลเดอร์ระยะทางดูสิ')+
+    '<div class="simwrap"><canvas id="cv5a"></canvas></div>'+
+    '<div class="row" style="justify-content:space-between"><span>ระยะทางจากโลก</span><b id="d5a">10 พาร์เซก</b></div>'+
+    '<input type="range" id="dist5a" min="-1" max="3" step="0.02" value="1">'+
+    '<div class="row" style="gap:8px;margin-top:10px">'+
+      '<div class="card" style="flex:1;text-align:center;padding:10px"><div style="font-size:12px;color:#7fd0ff">โชติมาตรปรากฏ (m)</div><b id="m5a" style="font-size:26px;color:#7fd0ff">'+M.toFixed(2)+'</b><div style="font-size:11px;color:var(--dim)">เปลี่ยนตามระยะทาง</div></div>'+
+      '<div class="card" style="flex:1;text-align:center;padding:10px"><div style="font-size:12px;color:var(--gold)">โชติมาตรสัมบูรณ์ (M)</div><b style="font-size:26px;color:var(--gold)">'+M.toFixed(2)+'</b><div style="font-size:11px;color:var(--dim)">ค่าจริง ไม่เปลี่ยน 🔒</div></div>'+
+    '</div>'+
+    '<div id="mark5a" style="text-align:center;font-size:13px;color:var(--dim);margin-top:8px">เลื่อนไปที่ระยะ 10 พาร์เซก (ระยะมาตรฐาน) ดูสิ — จะเกิดอะไรขึ้น?</div>'+
+    hintBox('ที่ระยะ 10 พาร์เซกพอดี ค่า m และ M จะเท่ากันเสมอ — เพราะนั่นคือนิยามของโชติมาตรสัมบูรณ์')+
+    '<button class="btn orange" style="margin-top:10px" onclick="gate5a()">ไปต่อ →</button>'+
+    '<button class="btn ghost" style="margin-top:8px" onclick="mapScreen()">← กลับ</button>');
+  const {x,W,H}=cv('cv5a',0.6); const cx=W/2,cy=H/2; const sl=$('#dist5a');
+  let lastV=null;
+  loop(t=>{ const logd=+sl.value; const d=Math.pow(10,logd); const m=apparentMag(M,d);
+    if(logd!==lastV){ lastV=logd;
+      $('#d5a').textContent=fmtDist(d);
+      $('#m5a').textContent=(m>0?'+':'')+m.toFixed(2);
+      const atStd=Math.abs(logd-1)<0.03;
+      $('#mark5a').innerHTML=atStd?'✨ <b style="color:var(--good)">ตอนนี้อยู่ที่ 10 พาร์เซกพอดี — m = M!</b>':'เลื่อนไปที่ระยะ <b>10 พาร์เซก</b> (ระยะมาตรฐาน) ดูสิ — จะเกิดอะไรขึ้น?';
+    }
+    x.clearRect(0,0,W,H);
+    const r=70-(logd+1)/4*64; /* เชิงเส้นตาม log-ระยะทาง (ไม่ใช้ flux ตรงๆ เพราะช่วงค่ากว้างมาก จะเห็นแค่ใหญ่สุด/เล็กสุดเกือบตลอด ไม่ค่อยไหลลื่น) */
+    drawStar(x,cx,cy,r,'#ffe46b',t);
+  });
+  sl.addEventListener('input',()=>sfx('click'));
+}
+function gate5a(){
+  sfx('click');
+  predictGate(
+    'เมื่อกี้เลื่อน "ระยะทาง" ของดาวดวงเดิม — ค่าไหน<b>เปลี่ยน</b> และค่าไหน<b>คงที่</b>?',
+    [{t:'m (ปรากฏ) เปลี่ยน · M (สัมบูรณ์) คงที่',ok:true},
+     {t:'M (สัมบูรณ์) เปลี่ยน · m (ปรากฏ) คงที่'},
+     {t:'ทั้งสองค่าเปลี่ยนตามระยะทาง'},
+     {t:'ทั้งสองค่าคงที่เสมอไม่ว่าระยะเท่าไร'}],
+    'M คือความสว่าง<b>จริง</b>ของดาว ไม่ขึ้นกับระยะทาง ส่วน m คือความสว่างที่ "มองเห็น" จากโลก ยิ่งไกลยิ่งดูจาง (m มากขึ้น)',
+    ()=>phase5b(), 15, '🧠 ทดสอบความเข้าใจ');
+}
+function phase5b(){
+  sfx('click');
+  const stars=MAGSTARS;
+  const byApparent=stars.slice().sort((a,b)=>apparentMag(a.mag,a.dist)-apparentMag(b.mag,b.dist));
+  const byDist=stars.slice().sort((a,b)=>a.dist-b.dist); /* แถวบนสุด = ใกล้ผู้สังเกตที่สุด (กันซ้อนกันในมุมมองระยะทาง) */
+  let revealed=false, revealT0=0; const REVEAL_DUR=1200;
+  const easeInOut=p=>p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
+  show(levelHeader(5,'เฟส 2/2 · ดูจากโลก vs ดึงมาเทียบระยะเดียวกัน')+
+    nova('ตอนนี้เรียงดาว 3 ดวงตาม<b>ความสว่างที่มองเห็นจากโลก</b> — สังเกตดวงอาทิตย์ที่ดู "จ้า" ที่สุด! มุมมองด้านบนคือ<b>ระยะห่างจริงจากโลก</b> (สเกลลอการิทึม เพราะระยะต่างกันมหาศาล) ลองกดปุ่มด้านล่างเพื่อดึงทุกดวงมาที่ระยะ<b>มาตรฐาน 10 พาร์เซก</b>เท่ากัน แล้วดูว่าเกิดอะไรขึ้น')+
+    '<div class="row" style="justify-content:space-between"><span>ระยะห่างจริงจากผู้สังเกต (สเกลลอการิทึม)</span></div>'+
+    '<div class="simwrap"><canvas id="cv5dist"></canvas></div>'+
+    '<div class="simwrap" style="margin-top:8px"><canvas id="cv5b"></canvas></div>'+
+    '<div id="cards5b"></div>'+
+    '<button class="btn orange" id="revealBtn" style="margin-top:10px" onclick="_reveal5b()">🔭 ดึงทุกดวงมาระยะ 10 พาร์เซกเท่ากัน</button>'+
+    hintBox('ดวงอาทิตย์อยู่ใกล้เรามาก (ห่างแค่ ๆ ไม่ถึง 1 นาทีแสง!) จึงดูสว่างจ้าทั้งที่ M ธรรมดา ส่วนไรเจลอยู่ไกลถึง 264 พาร์เซก ความสว่างจริงจึงถูกระยะทางบดบัง')+
+    '<button class="btn ghost" style="margin-top:8px" onclick="mapScreen()">← กลับ</button>');
+  function renderCards(useApparent){
+    const list=useApparent?byApparent:stars.slice().sort((a,b)=>a.mag-b.mag);
+    $('#cards5b').innerHTML=list.map(s=>{
+      const val=useApparent?apparentMag(s.mag,s.dist):s.mag;
+      return '<div class="card" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;margin:6px 0">'+
+        '<div><b>'+s.n+'</b><br><small style="color:var(--dim)">ระยะจริง '+fmtDist(s.dist)+'</small></div>'+
+        '<div style="text-align:right"><b style="font-size:20px;color:'+(useApparent?'#7fd0ff':'var(--gold)')+'">'+(val>0?'+':'')+val.toFixed(2)+'</b><br>'+
+        '<small style="color:var(--dim)">'+(useApparent?'โชติมาตรปรากฏ (m)':'โชติมาตรสัมบูรณ์ (M)')+'</small></div></div>';
+    }).join('');
+  }
+  renderCards(true);
+
+  /* มุมมองด้านข้าง — ระยะห่างจากผู้สังเกตตามแนวแกน x (สเกลลอการิทึมของพาร์เซก เพราะช่วงระยะกว้างมาก 8 นาทีแสง–264pc)
+     แต่ละดาวอยู่คนละแถว (y คงที่) กันไม่ให้จุดซ้อนกันตอน x ใกล้กัน */
+  const {x:xd,W:Wd,H:Hd}=cv('cv5dist',0.36); const padD=16;
+  const LOGMIN=-6,LOGMAX=3,LOG10PC=1; /* ครอบคลุม ~1e-6pc (ใกล้ผู้สังเกต) ถึง 1000pc (เลยไรเจล 264pc) */
+  const PXd=logd=>padD+(logd-LOGMIN)/(LOGMAX-LOGMIN)*(Wd-padD*2);
+  const rowY={}; byDist.forEach((s,i)=>{ rowY[s.en]=Hd*0.28+i*(Hd*0.34); });
+
+  /* มุมมองหลัก — ขนาด/ความสว่างของดาว: ตำแหน่ง x คงที่เสมอ (ไม่สลับข้าง กันสับสน) เปลี่ยนแค่ขนาด r */
+  const {x,W,H}=cv('cv5b',0.5); const cy=H/2;
+  const fixedX={}; byApparent.forEach((s,i)=>{ fixedX[s.en]=W*(i+1)/(byApparent.length+1); });
+  /* normalize ขนาดตามช่วงค่าของชุดนั้นๆ (ไม่ใช้ flux ตรงๆ) เพราะช่วงโชติมาตรกว้างมาก (~30 แม็ก) จะชนเพดานขนาดหมดทุกดวง */
+  function computeR(useApparent){ const vals=stars.map(s=>useApparent?apparentMag(s.mag,s.dist):s.mag);
+    const vmin=Math.min(...vals), vmax=Math.max(...vals); const rr={};
+    stars.forEach((s,i)=>{ const frac=vmax>vmin?(vmax-vals[i])/(vmax-vmin):1; /* val น้อย/ติดลบ = สว่างกว่า = ดวงใหญ่กว่า */
+      rr[s.en]=14+frac*42; }); return rr; }
+  const rA=computeR(true), rB=computeR(false);
+
+  loop(t=>{ let p=0; if(revealed){ p=easeInOut(Math.min(1,(performance.now()-revealT0)/REVEAL_DUR)); }
+
+    /* วาดมุมมองระยะทาง */
+    xd.clearRect(0,0,Wd,Hd);
+    const px10=PXd(LOG10PC);
+    xd.strokeStyle='rgba(255,210,63,.55)';xd.setLineDash([4,3]);xd.lineWidth=1.5;
+    xd.beginPath();xd.moveTo(px10,4);xd.lineTo(px10,Hd-14);xd.stroke();xd.setLineDash([]);
+    xd.fillStyle='var(--gold)';xd.font='10px sans-serif';xd.textAlign='center';xd.fillText('10 พาร์เซก (มาตรฐาน)',px10,Hd-4);
+    xd.font='18px sans-serif';xd.textAlign='center';xd.fillText('🌍',padD,Hd*0.5+6);
+    xd.fillStyle='var(--dim)';xd.font='9px sans-serif';xd.fillText('ผู้สังเกต',padD,12);
+    stars.forEach(s=>{ const logReal=Math.log10(s.dist);
+      const logNow=revealed?logReal+(LOG10PC-logReal)*p:logReal;
+      const px=PXd(logNow), py=rowY[s.en];
+      xd.beginPath();xd.fillStyle=tempType(s.T)[2];xd.arc(px,py,5,0,7);xd.fill();
+      xd.fillStyle='#fff';xd.font='10px sans-serif';xd.textAlign='center';xd.fillText(s.n,px,py-9);
+    });
+
+    /* วาดมุมมองขนาด/ความสว่าง */
+    x.clearRect(0,0,W,H);
+    stars.forEach(s=>{ const r=rA[s.en]+(rB[s.en]-rA[s.en])*p;
+      drawStar(x,fixedX[s.en],cy,r,tempType(s.T)[2],t);
+      x.fillStyle='#fff';x.font='11px sans-serif';x.textAlign='center';x.fillText(s.n,fixedX[s.en],cy+r+18);
+    });
+  });
+  window._reveal5b=()=>{ if(revealed)return; revealed=true; revealT0=performance.now(); sfx('ignite'); flash('#fff7d6',.7,600); shake(300,8);
+    toast('💫 กำลังดึงมาเทียบระยะเดียวกัน... ดูว่าใครสว่างจริงที่สุด');
+    renderCards(false); /* เปลี่ยนการ์ดเป็นโชติมาตรสัมบูรณ์ (M) แสดงพร้อมอนิเมชัน */
+    const b=$('#revealBtn'); if(b){ b.disabled=true; b.textContent='✓ กำลังดึงมาเทียบ...'; }
+    /* หลังอนิเมชันจบ เปลี่ยนปุ่มเป็น "เข้าใจแล้ว" ให้นักเรียนกดเองเพื่อไปคำถาม (ไม่เด้งคำถามอัตโนมัติ) */
+    setTimeout(()=>{ const b2=$('#revealBtn'); if(b2){ b2.disabled=false; b2.textContent='เข้าใจแล้ว →'; b2.onclick=gate5b; } }, REVEAL_DUR+200);
+  };
+}
+function gate5b(){
+  predictGate(
+    'ไรเจลตอน "มองจากโลก" ดูจางกว่าดวงอาทิตย์มาก แต่พอดึงมาระยะเท่ากันกลับ<b>สว่างจริงที่สุด</b> เพราะอะไร?',
+    [{t:'เพราะไรเจลอยู่ไกลจากโลกกว่ามาก (264 พาร์เซก vs ระยะใกล้เฉียดของดวงอาทิตย์)',ok:true},
+     {t:'เพราะไรเจลมีสีต่างจากดวงอาทิตย์'},
+     {t:'เพราะดวงอาทิตย์เป็นดาวแคระขาว'},
+     {t:'เพราะไรเจลหมุนรอบตัวเองเร็วกว่า'}],
+    '<b>ระยะทาง</b>คือตัวการ! ดวงอาทิตย์อยู่ใกล้เรามาก จึงดูจ้าทั้งที่ M ธรรมดา ส่วนไรเจลไกลถึง 264 พาร์เซก ความสว่างจริงมหาศาลจึงถูกระยะทางบดบังไป',
+    ()=>completeLevel(5,HINTS,'เข้าใจแล้ว! <b>โชติมาตรปรากฏ (m)</b> ขึ้นกับทั้งความสว่างจริงและระยะทาง ส่วน<b>โชติมาตรสัมบูรณ์ (M)</b> คือความสว่างจริงล้วนๆ ที่ระยะมาตรฐาน 10 พาร์เซก — เอาไปใช้อ่านแผนภาพ H–R ต่อได้เลย!','appabs'),
+    18, '🧠 ทดสอบความเข้าใจ');
+}
+
+/* ============================ LEVEL 6 — แผนภาพ H–R (อุณหภูมิ K + โชติมาตร) ============================ */
+function level6hr(){
   const stars=HRSTARS;
   const Tmin=2500,Tmax=44000,magTop=-9,magBot=16.5;
   const txf=T=>(Math.log(Tmax)-Math.log(T))/(Math.log(Tmax)-Math.log(Tmin));
@@ -826,11 +1005,11 @@ function level5(){
   const txInv=tx=>Math.exp(Math.log(Tmax)-tx*(Math.log(Tmax)-Math.log(Tmin)));
   function fillAndFinish(){
     sfx('success'); flash('#ffe9b0',.4,600);
-    show(levelHeader(5,'แผนภาพ H–R ที่สมบูรณ์ 🌟')+
+    show(levelHeader(6,'แผนภาพ H–R ที่สมบูรณ์ 🌟')+
       nova('เยี่ยมมาก! วางดาวครบแล้ว 🎉 ดูสิ เมื่อเติมดาวฤกษ์จำนวนมากลงไป จะเห็น <b>กลุ่มดาว</b> ชัดเจน — แถบลำดับหลัก (แนวทแยง), ดาวยักษ์/ยักษ์ใหญ่ (บนขวา) และดาวแคระขาว (ล่างซ้าย)')+
       '<div class="simwrap"><canvas id="cv5"></canvas></div>'+
       '<button class="btn orange" style="margin-top:10px" onclick="_finL5()">เสร็จสิ้นภารกิจ 🌟</button>');
-    window._finL5=()=>completeLevel(5,HINTS,'ระดับนักดาราศาสตร์ตัวจริง! 🌟 เธอจัดดาวบนแผนภาพ H–R ตามอุณหภูมิ (K) และโชติมาตรสัมบูรณ์ได้ครบ และเห็นภาพรวมของกลุ่มดาวทั้งหมดแล้ว จบภารกิจตะลุยอวกาศอย่างสมบูรณ์แบบ!','hr');
+    window._finL5=()=>completeLevel(6,HINTS,'ระดับนักดาราศาสตร์ตัวจริง! 🌟 เธอจัดดาวบนแผนภาพ H–R ตามอุณหภูมิ (K) และโชติมาตรสัมบูรณ์ได้ครบ และเห็นภาพรวมของกลุ่มดาวทั้งหมดแล้ว จบภารกิจตะลุยอวกาศอย่างสมบูรณ์แบบ!','hr');
     const {x,W,H}=cv('cv5',1.02); const pad=50,plotW=W-pad-14,plotH=H-16-40;
     const PX=tx=>pad+tx*plotW, PY=ty=>16+ty*plotH;
     const pop=[]; const add=(tx,ty,delay,r)=>pop.push({tx,ty,delay,r,col:tempType(txInv(tx))[2]});
@@ -861,7 +1040,7 @@ function level5(){
   }
   function render(){
     if(stars.every(s=>placed[s.en])){ fillAndFinish(); return; }
-    show(levelHeader(5,'แตะเลือกดาว → ดูคุณสมบัติ → ลากวางตามอุณหภูมิ (K) และโชติมาตร')+
+    show(levelHeader(6,'แตะเลือกดาว → ดูคุณสมบัติ → ลากวางตามอุณหภูมิ (K) และโชติมาตร')+
       nova('แผนภาพ H–R: แกนนอน = <b>อุณหภูมิพื้นผิว (K)</b> เรียงมาก→น้อย (ซ้าย→ขวา) · แกนตั้ง = <b>โชติมาตรสัมบูรณ์</b> (ค่ายิ่งน้อย/ติดลบ = ยิ่งสว่าง อยู่บน) แตะดาวด้านล่างเพื่อดูคุณสมบัติ แล้วลากไปวางให้ตรง')+
       '<div class="simwrap"><canvas id="cv5"></canvas></div>'+
       '<div class="card" id="prop5" style="font-size:13px;min-height:52px;display:flex;align-items:center">แตะเลือกดาวด้านล่างเพื่อดูคุณสมบัติ</div>'+
@@ -882,10 +1061,7 @@ function level5(){
     document.getElementById('chips5').onclick=e=>{ const b=e.target.closest('[data-en]'); if(!b)return;
       const s=stars.find(z=>z.en===b.dataset.en); if(placed[s.en])return;
       if(sel&&sel.en===s.en){ return; }  // แตะซ้ำดวงเดิม (กำลังลากอยู่) ไม่ต้องถามซ้ำ
-      const correct=regionOf5(s); const opts=shuffle(REGIONS5.map(r=>({t:r,ok:r===correct})));
-      predictGate('ดาว <b>'+s.n+'</b> (สเปกตรัม '+s.sp+' · โชติมาตร '+(s.mag>0?'+':'')+s.mag+') ควรอยู่บริเวณใดของแผนภาพ H–R?',
-        opts,'ดูโชติมาตร: ยิ่งสว่าง (ค่าน้อย/ติดลบ) ยิ่งอยู่สูง · ดาวแคระขาวจะจาง (ค่ามาก) อยู่ล่างซ้าย',
-        ()=>activateStar(s), 12); };
+      activateStar(s); };
     loop(t=>{ x.clearRect(0,0,W,H);
       const bg=x.createLinearGradient(pad,0,pad+plotW,0);bg.addColorStop(0,'rgba(120,150,255,.16)');bg.addColorStop(.5,'rgba(255,250,210,.08)');bg.addColorStop(1,'rgba(255,110,70,.16)');
       x.fillStyle=bg;x.fillRect(pad,16,plotW,plotH);
@@ -926,7 +1102,7 @@ const QUIZ=[
  {q:'ดาวฤกษ์คงรูปอยู่ได้เพราะสมดุลของแรงคู่ใด?',o:['แม่เหล็ก vs ไฟฟ้า','แรงโน้มถ่วง(เข้า) vs ความดันฟิวชัน(ออก)','แรงตึงผิว vs ความดัน','แรงนิวเคลียร์ vs โน้มถ่วง'],a:1,e:'เรียกว่าสมดุลอุทกสถิต'},
  {q:'โปรโตสตาร์มวลน้อยกว่า 0.08 เท่าดวงอาทิตย์ จะกลายเป็น?',o:['ดาวแคระขาว','ดาวนิวตรอน','ดาวแคระน้ำตาล','หลุมดำ'],a:2,e:'มวลน้อยเกินไป แกนร้อนไม่พอจุดฟิวชัน'},
  {q:'ดาวสีใดมีอุณหภูมิสูงที่สุด?',o:['แดง','เหลือง','ขาว','น้ำเงิน'],a:3,e:'เรียงร้อน→เย็น: น้ำเงิน-ขาว-เหลือง-แดง'},
- {q:'ข้อใดถูกเกี่ยวกับ "โชติมาตร"?',o:['ตัวเลขมาก = สว่างมาก','ตัวเลขน้อย/ติดลบ = สว่างมาก','ไม่เกี่ยวกับความสว่าง','วัดเฉพาะสีดาว'],a:1,e:'สเกลกลับด้าน เช่น ดวงอาทิตย์ −26.7 สว่างที่สุด'},
+ {q:'ดวงอาทิตย์ "ดูสว่างที่สุด" (โชติมาตรปรากฏ −26.7) ทั้งที่โชติมาตรสัมบูรณ์ (ความสว่างจริง) ธรรมดามาก เพราะอะไร?',o:['โชติมาตรปรากฏขึ้นกับสีดาวเท่านั้น','โชติมาตรปรากฏขึ้นกับระยะทางด้วย — ดวงอาทิตย์อยู่ใกล้โลกมาก','เพราะดวงอาทิตย์ร้อนกว่าดาวทุกดวง','เพราะวัดผิดพลาด'],a:1,e:'ต่างจากโชติมาตรสัมบูรณ์ (ความสว่างจริง ไม่ขึ้นกับระยะ) โชติมาตรปรากฏขึ้นกับระยะทางด้วย ยิ่งใกล้ยิ่งดูสว่าง'},
  {q:'ดาวฤกษ์แบบดวงอาทิตย์ (0.08–8 เท่า) จะจบชีวิตเป็น?',o:['หลุมดำ','ดาวนิวตรอน','ดาวแคระขาว','ดาวแคระน้ำตาล'],a:2,e:'ผ่านยักษ์แดง→เนบิวลาดาวเคราะห์→ดาวแคระขาว'},
  {q:'ดาวมวลมากกว่า 25 เท่าดวงอาทิตย์ จบชีวิตเป็น (หลังซูเปอร์โนวา)?',o:['ดาวแคระขาว','หลุมดำ','ดาวแคระน้ำตาล','ดาวเคราะห์'],a:1,e:'มวลมากเกินจนยุบเป็นหลุมดำ'},
  {q:'บนแผนภาพ H–R ดาวกลุ่มใดอยู่มากที่สุด (รวมดวงอาทิตย์)?',o:['ดาวยักษ์','ดาวแคระขาว','แถบลำดับหลัก','ซูเปอร์โนวา'],a:2,e:'ดาวราว 90% อยู่บนแถบลำดับหลัก'},
