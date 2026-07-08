@@ -518,7 +518,7 @@ function level1(){
     hintBox('แตะค้างใกล้ ๆ กลุ่มแก๊สที่ลอยอยู่ แล้วลากวงให้มันไหลเข้าหาแกนกลาง — ยิ่งสะสมมวลมาก แรงโน้มถ่วงยิ่งดึงแรงขึ้น!')+
     '<button class="btn ghost" style="margin-top:10px" onclick="mapScreen()">← กลับ</button>');
   const {c,x,W,H}=cv('cv1',0.92); const cx=W/2,cy=H/2; let mass=0,target=260,ignited=false,touch=null;
-  const parts=[]; const P=[]; const mile={25:0,50:0,75:0}; const t0=performance.now();
+  const parts=[]; const P=[]; const mile={25:0,50:0,75:0};
   for(let i=0;i<300;i++){ let px,py; do{px=Math.random()*W;py=Math.random()*H}while(Math.hypot(px-cx,py-cy)<38);
     P.push({x:px,y:py,vx:0,vy:0,s:0.5+Math.random()*1.4}); }
   c.addEventListener('pointerdown',e=>{touch=pos(c,e)});
@@ -529,11 +529,9 @@ function level1(){
     const nb=getImg(IMG.nebula); if(nb)drawCover(x,nb,0,0,W,H,.28); else { const bg=x.createRadialGradient(cx,cy,0,cx,cy,W*.7);bg.addColorStop(0,'rgba(60,40,90,.4)');bg.addColorStop(1,'rgba(5,5,20,0)');x.fillStyle=bg;x.fillRect(0,0,W,H) }
     const coreR=10+Math.min(mass,target)*0.42;
     drawStar(x,cx,cy,Math.max(6,coreR), ignited?'#fff2c0':'#9cc0ff', t);
-    /* แรงโน้มถ่วงพื้นฐานเพิ่มขึ้นช้า ๆ ตามเวลาที่ผ่านไปด้วย กันไม่ให้ผู้เล่นลากพลาดจนติดค้างไม่จบด่าน */
-    const gAmbient=Math.min(0.02,0.0012+mass*0.00022)+(t-t0)*0.0000035;
     for(const p of P){ if(p.dead)continue;
-      let dx=cx-p.x,dy=cy-p.y,d=Math.hypot(dx,dy)||1; p.vx+=dx/d*gAmbient; p.vy+=dy/d*gAmbient;
-      // tangential swirl
+      let dx=cx-p.x,dy=cy-p.y,d=Math.hypot(dx,dy)||1;
+      // แค่หมุนวนตกแต่ง (ไม่ดึงเข้าแกน) — ต้องให้ผู้เล่นแตะลากพามวลเข้าแกนเองเท่านั้น ไม่มีแรงโน้มถ่วงอัตโนมัติ
       p.vx+=-dy/d*0.02; p.vy+=dx/d*0.02;
       if(!ignited&&touch){ let tx=touch.x-p.x,ty=touch.y-p.y,td=Math.hypot(tx,ty)||1; if(td<65){ p.vx+=tx/td*0.08; p.vy+=ty/td*0.08 } }
       p.vx*=.95;p.vy*=.95;p.x+=p.vx;p.y+=p.vy;
